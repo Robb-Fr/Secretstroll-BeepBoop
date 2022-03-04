@@ -4,6 +4,10 @@ import credential
 from petrelic.multiplicative.pairing import G1, G2, GT, Bn
 from os import urandom
 
+######################
+## SIGNATURE SCHEME ##
+######################
+
 def test_generate_key_success():
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
@@ -47,3 +51,11 @@ def test_sign_fail():
 
     fake_Sk, fake_Pk = credential.generate_key(attributes)
     assert not credential.verify(fake_Pk, sigma, msgs)
+
+#################################
+## ATTRIBUTE-BASED CREDENTIALS ##
+#################################
+
+## ISSUANCE PROTOCOL ##
+
+## SHOWING PROTOCOL ##

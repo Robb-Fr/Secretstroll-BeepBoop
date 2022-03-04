@@ -185,8 +185,9 @@ def verify_disclosure_proof(
     """
     raise NotImplementedError()
 
-
+####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##
+####################################
 
 
 def bytes_to_Bn(b: bytes):

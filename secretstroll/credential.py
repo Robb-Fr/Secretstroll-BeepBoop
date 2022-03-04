@@ -187,5 +187,7 @@ def verify_disclosure_proof(
 
 
 ## TOOLS METHODS FOR COMPUTATIONS ##
+
+
 def bytes_to_Bn(b: bytes):
     return Bn(int.from_bytes(b, byteorder))

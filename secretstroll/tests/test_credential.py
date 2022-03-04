@@ -35,7 +35,7 @@ def test_sign_success():
 
 
 def test_sign_fail():
-    list_len = random.randint(0, 30)
+    list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = credential.generate_key(attributes)
     msgs = [urandom(16) for _ in range(list_len)]

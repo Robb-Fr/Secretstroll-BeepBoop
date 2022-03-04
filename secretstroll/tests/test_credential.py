@@ -5,7 +5,7 @@ from petrelic.multiplicative.pairing import G1, G2, GT, Bn
 from os import urandom
 
 def test_generate_key_success():
-    list_len = random.randint(0, 30)
+    list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = credential.generate_key(attributes)
     assert Sk.L == list_len
@@ -21,7 +21,7 @@ def test_generate_key_fail():
 
 
 def test_sign_success():
-    list_len = random.randint(0, 30)
+    list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = credential.generate_key(attributes)
     msgs = [urandom(16) for _ in range(list_len)]

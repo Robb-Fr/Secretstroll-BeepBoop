@@ -18,7 +18,7 @@ jobs:
   # This workflow contains a single job called "test"
   test:
     runs-on: debian-bullseye
-    timeout-minutes: 10
+    timeout-minutes: 5
     
     steps:
       - name: Check out repository code
@@ -31,7 +31,7 @@ jobs:
           pip install -r requirements.txt
           pip install -r
       
-      - name: Run test suite
-        run: |
-          cd secretstroll; python3 -m pytest
+      - name: GitHub Action for pytest
+        uses: cclauss/GitHub-Action-for-pytest@0.5.0
+
    

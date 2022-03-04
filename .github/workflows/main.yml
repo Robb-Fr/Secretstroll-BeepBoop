@@ -33,5 +33,5 @@ jobs:
       
       - name: Run test suite
         run: |
-          python3 -m pytest
+          cd secretstroll; python3 -m pytest
    

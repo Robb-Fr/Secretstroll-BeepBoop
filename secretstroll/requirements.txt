@@ -6,3 +6,5 @@ PySocks
 pylint
 pytest
 requests
+
+pytest-repeat

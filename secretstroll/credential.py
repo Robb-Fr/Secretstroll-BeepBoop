@@ -113,7 +113,8 @@ def verify(pk: PublicKey, signature: Signature, msgs: List[bytes]) -> bool:
             "Messages should have length L, the number of signed attributes"
         )
     if signature.sigma1 == G1.unity():  # unity is alias for neutral element
-        raise ValueError("Sigma_1 should not be the neutral element")
+        # immediatly discards the case when sigma_1 is 1
+        return False
     # creates the list of Y_i^m_i elements
     Y_hat_m_list = list(
         map(
@@ -184,6 +185,7 @@ def verify_disclosure_proof(
     Hint: The verifier may also want to retrieve the disclosed attributes
     """
     raise NotImplementedError()
+
 
 ####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##

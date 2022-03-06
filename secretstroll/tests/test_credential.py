@@ -8,6 +8,7 @@ from os import urandom
 ## SIGNATURE SCHEME ##
 ######################
 
+
 def test_generate_key_success():
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
@@ -44,13 +45,13 @@ def test_sign_fail():
     with pytest.raises(IndexError):
         assert credential.verify(Pk, sigma, [])
 
-    with pytest.raises(ValueError):
-        assert credential.verify(
-            Pk, credential.Signature(G1.unity(), G1.order().random()), msgs
-        )
-
+    assert not credential.verify(
+        Pk, credential.Signature(G1.unity(), G1.order().random()), msgs
+    )
+    
     fake_Sk, fake_Pk = credential.generate_key(attributes)
     assert not credential.verify(fake_Pk, sigma, msgs)
+
 
 #################################
 ## ATTRIBUTE-BASED CREDENTIALS ##

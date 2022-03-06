@@ -31,9 +31,9 @@ from petrelic.multiplicative.pairing import G1, G2, GT, Bn, G1Element, G2Element
 # PublicKey = List[Any]
 # Signature = Any
 Attribute = Bn  # a mod p element (p the order of pairing groups)
-AttributeMap = Any
-IssueRequest = Any
-BlindSignature = Any
+AttributeMap = dict[int, Bn]
+# IssueRequest = Any
+# BlindSignature = Any
 AnonymousCredential = Any
 DisclosureProof = Any
 
@@ -62,11 +62,23 @@ class PublicKey:
 
 
 class Signature:
-    def __init__(self, h: G1Element, exponent: Bn) -> None:
+    def __init__(self, h: G1Element, h_exp: G1Element) -> None:
         self.h = h
-        self.sigma = (h, h**exponent)
+        self.sigma = (h, h_exp)
         self.sigma1 = self.sigma[0]
         self.sigma2 = self.sigma[1]
+
+
+class IssueRequest:
+    def __init__(self, C: G1Element) -> None:
+        self.C = C
+
+
+class BlindSignature:
+    def __init__(self, g_u, prod_u) -> None:
+        self.sigma = (g_u, prod_u)
+        self.sigma1 = g_u
+        self.sigma2 = prod_u
 
 
 ######################
@@ -78,7 +90,7 @@ def generate_key(attributes: List[Attribute]) -> Tuple[SecretKey, PublicKey]:
     """Generate signer key pair"""
     l = len(attributes)
     if l < 1:
-        raise IndexError("There must be at list one attribute")
+        raise ValueError("There must be at list one attribute")
 
     y_list = [G1.order().random() for _ in range(l)]
     x = G1.order().random()
@@ -95,21 +107,22 @@ def generate_key(attributes: List[Attribute]) -> Tuple[SecretKey, PublicKey]:
 def sign(sk: SecretKey, msgs: List[bytes]) -> Signature:
     """Sign the vector of messages `msgs`"""
     if sk.L != len(msgs):
-        raise IndexError(
+        raise ValueError(
             "Messages should have length L, the number of signed attributes"
         )
 
     y_m_product = [sk.y_list[i] * bytes_to_Bn(msgs[i]) for i in range(sk.L)]
     exponent = sk.x + sum(y_m_product)
     h = G1.generator()
+    h_exp = h**exponent
 
-    return Signature(h, exponent)
+    return Signature(h, h_exp)
 
 
 def verify(pk: PublicKey, signature: Signature, msgs: List[bytes]) -> bool:
     """Verify the signature on a vector of messages"""
     if pk.L != len(msgs):
-        raise IndexError(
+        raise ValueError(
             "Messages should have length L, the number of signed attributes"
         )
     if signature.sigma1 == G1.unity():  # unity is alias for neutral element
@@ -143,7 +156,15 @@ def create_issue_request(pk: PublicKey, user_attributes: AttributeMap) -> IssueR
 
     *Warning:* You may need to pass state to the `obtain_credential` function.
     """
-    raise NotImplementedError()
+    if len(user_attributes) > pk.L or len(user_attributes) < 1:
+        raise ValueError(
+            "The required number of signed attributes is incorrect: should be in [1,L]"
+        )
+    Y_a_list = [pk.Y_list[i] ** user_attributes[i] for i in user_attributes.keys()]
+    t = G1.order().random()
+    commit_product = pk.g**t * G1.prod(Y_a_list)
+
+    return IssueRequest(commit_product)
 
 
 def sign_issue_request(
@@ -153,6 +174,12 @@ def sign_issue_request(
 
     This corresponds to the "Issuer signing" step in the issuance protocol.
     """
+    if len(issuer_attributes) > pk.L or len(issuer_attributes) < 1:
+        raise ValueError(
+            "The required number of signed attributes is incorrect: should be in [1,L]"
+        )
+    # TODO implement the proof check
+    
     raise NotImplementedError()
 
 

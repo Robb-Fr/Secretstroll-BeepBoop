@@ -21,7 +21,7 @@ def test_generate_key_success():
 
 def test_generate_key_fail():
     attributes = []
-    with pytest.raises(IndexError):
+    with pytest.raises(ValueError):
         credential.generate_key(attributes)
 
 
@@ -42,13 +42,11 @@ def test_sign_fail():
     msgs = [urandom(16) for _ in range(list_len)]
     sigma = credential.sign(Sk, msgs)
 
-    with pytest.raises(IndexError):
+    with pytest.raises(ValueError):
         assert credential.verify(Pk, sigma, [])
 
-    assert not credential.verify(
-        Pk, credential.Signature(G1.unity(), G1.order().random()), msgs
-    )
-    
+    assert not credential.verify(Pk, credential.Signature(G1.unity(), G1.unity()), msgs)
+
     fake_Sk, fake_Pk = credential.generate_key(attributes)
     assert not credential.verify(fake_Pk, sigma, msgs)
 

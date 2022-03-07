@@ -120,9 +120,7 @@ def sign(sk: SecretKey, msgs: List[bytes]) -> Signature:
             "Messages should have length L, the number of signed attributes"
         )
 
-    y_m_product = [
-        sk.y_list[i] * jsonpickle.decode(msgs[i]) for i in range(sk.L)
-    ]
+    y_m_product = [sk.y_list[i] * jsonpickle.decode(msgs[i]) for i in range(sk.L)]
     exponent = sk.x + sum(y_m_product)
     h = G1.generator()
     h_exp = h**exponent

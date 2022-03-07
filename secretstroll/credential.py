@@ -24,6 +24,8 @@ from petrelic.bn import Bn
 # Multiplicative pairing to preserve PS guide notations
 from petrelic.multiplicative.pairing import G1Element, G2Element, G1, G2
 
+from binascii import hexlify, unhexlify
+
 # Type hint aliases
 # Feel free to change them as you see fit.
 # Maybe at the end, you will not need aliases at all!
@@ -85,7 +87,7 @@ class BlindSignature:
 
 
 class AnonymousCredential:
-    def __init__(self, sigma: Signature, attributes: List[Attribute]) -> None:
+    def __init__(self, sigma: Signature, attributes: AttributeMap) -> None:
         self.sigma = sigma
         self.attributes = attributes
 
@@ -120,7 +122,9 @@ def sign(sk: SecretKey, msgs: List[bytes]) -> Signature:
             "Messages should have length L, the number of signed attributes"
         )
 
-    y_m_product = [sk.y_list[i] * Bn.from_binary(msgs[i]) for i in range(sk.L)]
+    y_m_product = [
+        sk.y_list[i] * Bn.from_binary(unhexlify(msgs[i])) for i in range(sk.L)
+    ]
     exponent = sk.x + sum(y_m_product)
     h = G1.generator()
     h_exp = h**exponent
@@ -140,13 +144,16 @@ def verify(pk: PublicKey, signature: Signature, msgs: List[bytes]) -> bool:
     # creates the list of Y_i^m_i elements
     Y_hat_m_list = list(
         map(
-            lambda Y_and_m: Y_and_m[0] ** Bn.from_binary(Y_and_m[1]),
+            lambda Y_and_m: Y_and_m[0] ** Bn.from_binary(unhexlify(Y_and_m[1])),
             zip(pk.Y_hat_list, msgs),
         )
     )
     public_product = pk.X_hat * G2.prod(Y_hat_m_list)
     left_side = signature.sigma1.pair(public_product)
     right_side = signature.sigma2.pair(pk.g_hat)
+    print(left_side)
+    print()
+    print(right_side)
 
     return left_side == right_side
 
@@ -160,7 +167,7 @@ def verify(pk: PublicKey, signature: Signature, msgs: List[bytes]) -> bool:
 
 def create_issue_request(
     pk: PublicKey, user_attributes: AttributeMap
-) -> Tuple[Bn, IssueRequest]:
+) -> Tuple[UserState, IssueRequest]:
     """Create an issuance request
 
     This corresponds to the "user commitment" step in the issuance protocol.
@@ -178,13 +185,19 @@ def create_issue_request(
     """
     if not check_attribute_map(user_attributes, pk.L):
         raise ValueError(
-            "Incorrect attributes map: should be a dict of 1 to L values with keys in [1,L]"
+            "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L]"
         )
-    Y_a_list = [pk.Y_list[i] ** user_attributes[i] for i in user_attributes.keys()]
+    # must take into account the Y_list index are in [0,L-1] and attributes in [1,L]
     t = G1.order().random()
+    user_state = (t, user_attributes)
+    if len(user_attributes) == 0:
+        # deals early with the case where no user attributes to sign
+        return user_state, IssueRequest(pk.g**t)
+
+    Y_a_list = [pk.Y_list[i - 1] ** user_attributes[i] for i in user_attributes.keys()]
     commit_product = pk.g**t * G1.prod(Y_a_list)
 
-    return t, IssueRequest(commit_product)
+    return user_state, IssueRequest(commit_product)
 
 
 def sign_issue_request(
@@ -196,12 +209,19 @@ def sign_issue_request(
     """
     if not check_attribute_map(issuer_attributes, pk.L):
         raise ValueError(
-            "Incorrect attributes map: should be a dict of 1 to L values with keys in [1,L]"
+            "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L]"
         )
     # TODO implement the proof check
     u = G1.order().random()
     g_u = pk.g**u
-    Y_a_list = [pk.Y_list[i] ** issuer_attributes[i] for i in issuer_attributes.keys()]
+    if len(issuer_attributes) == 0:
+        # deals early with the case where no issuer attributes to sign
+        return BlindSignature(g_u, (sk.X * request.C) ** u, issuer_attributes)
+
+    # must take into account the Y_list index are in [0,L-1] and attributes in [1,L]
+    Y_a_list = [
+        pk.Y_list[i - 1] ** issuer_attributes[i] for i in issuer_attributes.keys()
+    ]
     prod = sk.X * request.C * G1.prod(Y_a_list)
     prod_u = prod**u
 
@@ -209,7 +229,7 @@ def sign_issue_request(
 
 
 def obtain_credential(
-    pk: PublicKey, response: BlindSignature, t: Bn
+    pk: PublicKey, response: BlindSignature, state: UserState
 ) -> AnonymousCredential:
     """Derive a credential from the issuer's response
 
@@ -223,13 +243,20 @@ def obtain_credential(
         anonymous credential object containing the PS signature along with the attributes list it signs for
 
     """
+    t, user_attributes = state
+    if pk.L != len(user_attributes) + len(response.issuer_attributes):
+        raise ValueError(
+            "The sum of issuer and user signed attributes should be equal to L"
+        )
     sigma1 = response.sigma1
     sigma2 = response.sigma2 / (sigma1**t)
     sigma = Signature(sigma1, sigma2)
-    if not verify(pk, sigma, attributes_to_bytes(response.issuer_attributes)):
-        raise ValueError("The provided signature is not valid for the given attributes")
-    attr_list = response.issuer_attributes
-    return AnonymousCredential(sigma, attr_list)
+    all_attributes = user_attributes | response.issuer_attributes
+    if not verify(pk, sigma, attributes_to_bytes(all_attributes)):
+        raise ValueError(
+            "The provided signature is not valid for all the given attributes"
+        )
+    return AnonymousCredential(sigma, all_attributes)
 
 
 ## SHOWING PROTOCOL ##
@@ -261,7 +288,7 @@ def verify_disclosure_proof(
 
 
 def check_attribute_map(attributes: AttributeMap, L: int) -> bool:
-    if len(attributes) < 1 or len(attributes) > L:
+    if len(attributes) > L:
         # checks if there are too many attributes
         return False
     for index in attributes.keys():
@@ -271,5 +298,5 @@ def check_attribute_map(attributes: AttributeMap, L: int) -> bool:
     return True
 
 
-def attributes_to_bytes(attributes: List[Attribute]) -> List[bytes]:
-    return list(map(Bn.to_binary, attributes))
+def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
+    return list(map(lambda bn: hexlify(bn.binary()), list(attributes.values())))

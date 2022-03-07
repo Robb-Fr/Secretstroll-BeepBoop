@@ -30,7 +30,7 @@ def test_sign_success():
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
-    msgs = [urandom(16) for _ in range(list_len)]
+    msgs = [hexlify(Bn.binary(G1.order().random())) for _ in range(list_len)]
     sigma = sign(Sk, msgs)
 
     assert verify(Pk, sigma, msgs)
@@ -40,7 +40,7 @@ def test_sign_fail():
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
-    msgs = [urandom(16) for _ in range(list_len)]
+    msgs = [hexlify(Bn.binary(G1.order().random())) for _ in range(list_len)]
     sigma = sign(Sk, msgs)
 
     with pytest.raises(ValueError):
@@ -60,13 +60,18 @@ def test_sign_fail():
 
 
 def test_obtaining_credentials_succes():
+    # setup parameters
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     split_attributes = randomly_split_attributes(attributes)
     user_attributes = split_attributes[0]
     issuer_attributes = split_attributes[1]
-    pass
+    # start request
+    user_state, issue_req = create_issue_request(Pk, user_attributes)
+    blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
+    anon_cred = obtain_credential(Pk, blind_sig, user_state)
+    # if no error thrown, success
 
 
 ## SHOWING PROTOCOL ##
@@ -81,9 +86,12 @@ def randomly_split_attributes(
 ) -> Tuple[AttributeMap, AttributeMap]:
     """From the list of all attributes, split in 2 lists of indices mapped to their related attribute"""
     L = len(attributes)
-    shuffled_attributes = list(enumerate(attributes))
+    # creates sguffled dict with keys in [1,L]
+    shuffled_attributes = list(map(lambda i: (i[0] + 1, i[1]), enumerate(attributes)))
     random.shuffle(shuffled_attributes)
-    split_index = random.randint(1, L)
-    return dict(shuffled_attributes[:split_index]), dict(
-        shuffled_attributes[split_index:]
+    split_index = random.randint(0, L)
+    user_attributes = dict(shuffled_attributes[:split_index])
+    issuer_attributes = (
+        dict(shuffled_attributes[split_index:]) if split_index < L else {}
     )
+    return user_attributes, issuer_attributes

@@ -244,11 +244,12 @@ def obtain_credential(
     sigma2 = response.sigma2 / (sigma1**t)
     sigma = Signature(sigma1, sigma2)
     all_attributes = user_attributes | response.issuer_attributes
-    if not verify(pk, sigma, attributes_to_bytes(all_attributes)):
+    sorted_all_attributes = dict(sorted(all_attributes.items()))
+    if not verify(pk, sigma, attributes_to_bytes(sorted_all_attributes)):
         raise ValueError(
             "The provided signature is not valid for all the given attributes"
         )
-    return AnonymousCredential(sigma, all_attributes)
+    return AnonymousCredential(sigma, sorted_all_attributes)
 
 
 ## SHOWING PROTOCOL ##

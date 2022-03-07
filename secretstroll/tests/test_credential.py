@@ -3,7 +3,6 @@ import pytest
 from credential import *
 from petrelic.bn import Bn
 from petrelic.multiplicative.pairing import G1, G2, GT
-from os import urandom
 
 ######################
 ## SIGNATURE SCHEME ##

@@ -24,8 +24,6 @@ from petrelic.bn import Bn
 # Multiplicative pairing to preserve PS guide notations
 from petrelic.multiplicative.pairing import G1Element, G2Element, G1, G2
 
-from binascii import hexlify, unhexlify
-
 # Type hint aliases
 # Feel free to change them as you see fit.
 # Maybe at the end, you will not need aliases at all!
@@ -123,7 +121,7 @@ def sign(sk: SecretKey, msgs: List[bytes]) -> Signature:
         )
 
     y_m_product = [
-        sk.y_list[i] * Bn.from_binary(unhexlify(msgs[i])) for i in range(sk.L)
+        sk.y_list[i] * jsonpickle.decode(msgs[i]) for i in range(sk.L)
     ]
     exponent = sk.x + sum(y_m_product)
     h = G1.generator()
@@ -144,7 +142,7 @@ def verify(pk: PublicKey, signature: Signature, msgs: List[bytes]) -> bool:
     # creates the list of Y_i^m_i elements
     Y_hat_m_list = list(
         map(
-            lambda Y_and_m: Y_and_m[0] ** Bn.from_binary(unhexlify(Y_and_m[1])),
+            lambda Y_and_m: Y_and_m[0] ** jsonpickle.decode(Y_and_m[1]),
             zip(pk.Y_hat_list, msgs),
         )
     )
@@ -295,4 +293,4 @@ def check_attribute_map(attributes: AttributeMap, L: int) -> bool:
 
 
 def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
-    return list(map(lambda bn: hexlify(Bn.binary(bn)), attributes.values()))
+    return list(map(lambda bn: jsonpickle.encode(bn), attributes.values()))

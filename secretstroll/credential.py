@@ -99,7 +99,7 @@ def generate_key(attributes: List[Attribute]) -> Tuple[SecretKey, PublicKey]:
     """Generate signer key pair"""
     l = len(attributes)
     if l < 1:
-        raise ValueError("There must be at list one attribute")
+        raise ValueError("There must be at least one attribute")
 
     y_list = [G1.order().random() for _ in range(l)]
     x = G1.order().random()

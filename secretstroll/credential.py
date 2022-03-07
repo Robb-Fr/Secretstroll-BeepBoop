@@ -171,8 +171,8 @@ def create_issue_request(
 
     Returns:
         tuple containing:
-            - the t value used to as commitment witness, to be passed to the obtain credential_function
-            - the request object to be sent to the issuer. Should not contain the witness as made to be sent as is to the issuer
+            - the user state containing the witness t used to generate the commit value and the attribute map of the user credentials that will be blindly signed by the signer. To be used in the obtain_credential function
+            - the request object to be sent to the issuer. This is made to be sent as is to the issuer.
 
     *Warning:* You may need to pass state to the `obtain_credential` function.
     """
@@ -243,8 +243,10 @@ def obtain_credential(
     sigma1 = response.sigma1
     sigma2 = response.sigma2 / (sigma1**t)
     sigma = Signature(sigma1, sigma2)
-    all_attributes = user_attributes | response.issuer_attributes
-    sorted_all_attributes = dict(sorted(all_attributes.items()))
+    # we sort the dict to have the attributes aligned with their index
+    sorted_all_attributes = dict(
+        sorted((user_attributes | response.issuer_attributes).items())
+    )
     if not verify(pk, sigma, attributes_to_bytes(sorted_all_attributes)):
         raise ValueError(
             "The provided signature is not valid for all the given attributes"
@@ -281,6 +283,7 @@ def verify_disclosure_proof(
 
 
 def check_attribute_map(attributes: AttributeMap, L: int) -> bool:
+    """Checks if an attribute map content is consistent with an L value from a public parameter of keys"""
     if len(attributes) > L:
         # checks if there are too many attributes
         return False
@@ -292,4 +295,7 @@ def check_attribute_map(attributes: AttributeMap, L: int) -> bool:
 
 
 def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
-    return list(map(lambda bn: jsonpickle.encode(bn), attributes.values()))
+    """Converts an attribute map to a list of encoded attributes. Assumes no sorting of the incoming map and returns a sorted map"""
+    # we take care of sorting attributes by keys in order to have it consistent with the list representation
+    sorted_attributes = dict(sorted(attributes.items()))
+    return list(map(lambda bn: jsonpickle.encode(bn), sorted_attributes.values()))

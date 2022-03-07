@@ -151,9 +151,6 @@ def verify(pk: PublicKey, signature: Signature, msgs: List[bytes]) -> bool:
     public_product = pk.X_hat * G2.prod(Y_hat_m_list)
     left_side = signature.sigma1.pair(public_product)
     right_side = signature.sigma2.pair(pk.g_hat)
-    print(left_side)
-    print()
-    print(right_side)
 
     return left_side == right_side
 
@@ -187,15 +184,14 @@ def create_issue_request(
         raise ValueError(
             "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L]"
         )
-    # must take into account the Y_list index are in [0,L-1] and attributes in [1,L]
     t = G1.order().random()
     user_state = (t, user_attributes)
     if len(user_attributes) == 0:
         # deals early with the case where no user attributes to sign
         return user_state, IssueRequest(pk.g**t)
-
+    # must take into account the Y_list index are in [0,L-1] and attributes in [1,L]
     Y_a_list = [pk.Y_list[i - 1] ** user_attributes[i] for i in user_attributes.keys()]
-    commit_product = pk.g**t * G1.prod(Y_a_list)
+    commit_product = (pk.g**t) * G1.prod(Y_a_list)
 
     return user_state, IssueRequest(commit_product)
 
@@ -299,4 +295,4 @@ def check_attribute_map(attributes: AttributeMap, L: int) -> bool:
 
 
 def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
-    return list(map(lambda bn: hexlify(bn.binary()), list(attributes.values())))
+    return list(map(lambda bn: hexlify(Bn.binary(bn)), attributes.values()))

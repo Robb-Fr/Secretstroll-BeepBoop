@@ -30,7 +30,7 @@ def test_sign_success():
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
-    msgs = [hexlify(Bn.binary(G1.order().random())) for _ in range(list_len)]
+    msgs = attributes_to_bytes(dict(enumerate(attributes)))
     sigma = sign(Sk, msgs)
 
     assert verify(Pk, sigma, msgs)
@@ -40,7 +40,7 @@ def test_sign_fail():
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
-    msgs = [hexlify(Bn.binary(G1.order().random())) for _ in range(list_len)]
+    msgs = attributes_to_bytes(dict(enumerate(attributes)))
     sigma = sign(Sk, msgs)
 
     with pytest.raises(ValueError):
@@ -61,12 +61,10 @@ def test_sign_fail():
 
 def test_obtaining_credentials_succes():
     # setup parameters
-    list_len = random.randint(1, 30)
+    list_len = random.randint(1, 10)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
-    split_attributes = randomly_split_attributes(attributes)
-    user_attributes = split_attributes[0]
-    issuer_attributes = split_attributes[1]
+    user_attributes, issuer_attributes = randomly_split_attributes(attributes)
     # start request
     user_state, issue_req = create_issue_request(Pk, user_attributes)
     blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
@@ -91,7 +89,6 @@ def randomly_split_attributes(
     random.shuffle(shuffled_attributes)
     split_index = random.randint(0, L)
     user_attributes = dict(shuffled_attributes[:split_index])
-    issuer_attributes = (
-        dict(shuffled_attributes[split_index:]) if split_index < L else {}
-    )
+    issuer_attributes = dict(shuffled_attributes[split_index:])
+
     return user_attributes, issuer_attributes

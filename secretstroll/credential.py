@@ -24,6 +24,8 @@ from petrelic.bn import Bn
 # Multiplicative pairing to preserve PS guide notations
 from petrelic.multiplicative.pairing import G1Element, G2Element, G1, G2
 
+from hashlib import sha256
+
 # Type hint aliases
 # Feel free to change them as you see fit.
 # Maybe at the end, you will not need aliases at all!
@@ -264,7 +266,10 @@ def create_disclosure_proof(
     message: bytes,
 ) -> DisclosureProof:
     """Create a disclosure proof"""
-    raise NotImplementedError()
+    r, t = G1.order().random(), G1.order().random()
+    rnd_sigma_1 = credential.sigma.sigma1**r
+    rnd_sigma_2 = (credential.sigma.sigma2 * credential.sigma.sigma1**t) ** r
+    pass
 
 
 def verify_disclosure_proof(
@@ -299,3 +304,17 @@ def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
     # we take care of sorting attributes by keys in order to have it consistent with the list representation
     sorted_attributes = dict(sorted(attributes.items()))
     return list(map(lambda bn: jsonpickle.encode(bn), sorted_attributes.values()))
+
+
+def create_zero_knowledge_proof(pk: PublicKey, secret_exponent: Bn, user_attributes: AttributeMap, C: G1Element
+) -> Signature:
+    r = G1.order().random()
+    R = pk.g**r
+    # takes care of sorting the attributes and encodes with pickle as a message
+    m = jsonpickle.encode(dict(sorted(user_attributes.items())))
+    c = sha256(str(jsonpickle.encode((pk.pk, R, C))).encode()).hexdigest()
+    s = r + Bn.from_hex(c)
+    return Signature(c, s)
+
+def verify_zero_knowledge_proof(pi: Signature, pk: PublicKey, C: G1Element) -> bool:
+    pass

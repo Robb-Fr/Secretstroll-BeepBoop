@@ -2,7 +2,7 @@ import random
 import pytest
 import sys
 
-from .. import credential
+from ..credential import *
 from petrelic.bn import Bn
 from petrelic.multiplicative.pairing import G1, G2, GT
 

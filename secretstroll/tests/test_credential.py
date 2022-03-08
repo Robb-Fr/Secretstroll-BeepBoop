@@ -2,8 +2,7 @@ import random
 import pytest
 import sys
 
-sys.path.insert(0, "/home/student/Desktop/Secretstroll-BeepBoop/secretstroll")
-from credential import *
+from .. import credential
 from petrelic.bn import Bn
 from petrelic.multiplicative.pairing import G1, G2, GT
 

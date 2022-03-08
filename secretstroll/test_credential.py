@@ -3,7 +3,7 @@ from typing import List
 import pytest
 import sys
 
-from .. import credential
+from credential import *
 from petrelic.bn import Bn
 from petrelic.multiplicative.pairing import G1, G2, GT
 
@@ -15,7 +15,7 @@ from petrelic.multiplicative.pairing import G1, G2, GT
 def test_generate_key_success():
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
-    Sk, Pk = credential.generate_key(attributes)
+    Sk, Pk = generate_key(attributes)
     assert Sk.L == list_len
     assert len(Sk.sk) == list_len + 2
     assert Pk.L == list_len
@@ -25,33 +25,33 @@ def test_generate_key_success():
 def test_generate_key_fail():
     attributes = []
     with pytest.raises(ValueError):
-        credential.generate_key(attributes)
+        generate_key(attributes)
 
 
 def test_sign_success():
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
-    Sk, Pk = credential.generate_key(attributes)
-    msgs = credential.attributes_to_bytes(dict(enumerate(attributes)))
-    sigma = credential.sign(Sk, msgs)
+    Sk, Pk = generate_key(attributes)
+    msgs = attributes_to_bytes(dict(enumerate(attributes)))
+    sigma = sign(Sk, msgs)
 
-    assert credential.verify(Pk, sigma, msgs)
+    assert verify(Pk, sigma, msgs)
 
 
 def test_sign_fail():
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
-    Sk, Pk = credential.generate_key(attributes)
-    msgs = credential.attributes_to_bytes(dict(enumerate(attributes)))
-    sigma = credential.sign(Sk, msgs)
+    Sk, Pk = generate_key(attributes)
+    msgs = attributes_to_bytes(dict(enumerate(attributes)))
+    sigma = sign(Sk, msgs)
 
     with pytest.raises(ValueError):
-        assert credential.verify(Pk, sigma, [])
+        assert verify(Pk, sigma, [])
 
-    assert not credential.verify(Pk, credential.Signature(G1.unity(), G1.unity()), msgs)
+    assert not verify(Pk, Signature(G1.unity(), G1.unity()), msgs)
 
-    fake_Sk, fake_Pk = credential.generate_key(attributes)
-    assert not credential.verify(fake_Pk, sigma, msgs)
+    fake_Sk, fake_Pk = generate_key(attributes)
+    assert not verify(fake_Pk, sigma, msgs)
 
 
 #################################
@@ -65,22 +65,22 @@ def test_obtaining_credentials_succes():
     # setup parameters
     list_len = random.randint(1, 10)
     attributes = [G1.order().random() for _ in range(list_len)]
-    Sk, Pk = credential.generate_key(attributes)
+    Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
     # start request
-    user_state, issue_req = credential.create_issue_request(Pk, user_attributes)
-    blind_sig = credential.sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
-    anon_cred = credential.obtain_credential(Pk, blind_sig, user_state)
+    user_state, issue_req = create_issue_request(Pk, user_attributes)
+    blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
+    anon_cred = obtain_credential(Pk, blind_sig, user_state)
     # if no error thrown, success
 
 
 def test_zkp_success():
     list_len = random.randint(1, 10)
     attributes = [G1.order().random() for _ in range(list_len)]
-    Sk, Pk = credential.generate_key(attributes)
+    Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
-    user_state, issue_req = credential.create_issue_request(Pk, user_attributes)
-    assert credential.verify_zero_knowledge_proof(issue_req, Pk)
+    user_state, issue_req = create_issue_request(Pk, user_attributes)
+    assert verify_zero_knowledge_proof(issue_req, Pk)
 
 
 ## SHOWING PROTOCOL ##
@@ -91,8 +91,8 @@ def test_zkp_success():
 
 
 def randomly_split_attributes(
-    attributes: List[credential.Attribute],
-) -> credential.Tuple[credential.AttributeMap, credential.AttributeMap]:
+    attributes: List[Attribute],
+) -> Tuple[AttributeMap, AttributeMap]:
     """From the list of all attributes, split in 2 lists of indices mapped to their related attribute"""
     L = len(attributes)
     # creates sguffled dict with keys in [1,L]

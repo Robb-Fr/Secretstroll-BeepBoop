@@ -75,13 +75,12 @@ def test_obtaining_credentials_succes():
 
 
 def test_zkp_success():
-    return
     list_len = random.randint(1, 10)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
     user_state, issue_req = create_issue_request(Pk, user_attributes)
-    create_zero_knowledge_proof(Pk, user_state[0], user_state[1])
+    assert verify_zero_knowledge_proof(issue_req, Pk)
 
 
 ## SHOWING PROTOCOL ##

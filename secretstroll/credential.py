@@ -16,6 +16,7 @@ the functions provided to resemble a more object-oriented interface.
 """
 
 from typing import Any, List, Tuple
+from urllib import response
 
 from serialization import jsonpickle
 
@@ -71,9 +72,29 @@ class Signature:
         self.sigma2 = self.sigma[1]
 
 
+class ZeroKnowledgeProof:
+    def __init__(
+        self, challenge: Bn, response_0: Bn, response_attr_index: List[Tuple[Bn, int]]
+    ) -> None:
+        """Contains all the necessary values to verify a Zero Knowledge proof under a Pederson Commited value with Fiat Schamir heuristic
+
+        Args:
+            challenge: the computed challenge corresponding to the hash of public values and commitment
+
+            response_0: the response corresponding to the first secret commited value (t value). It is separated to catch the possibility of making a simple Schnorr's proof
+
+            response_attr_index: a tuple containing:
+                - the response value for the secret attribute
+                - the secret attribute index for the verifier to identify which public key to put to the response power"""
+        self.challenge = challenge
+        self.response_0 = response_0
+        self.response_index = response_attr_index
+
+
 class IssueRequest:
-    def __init__(self, C: G1Element) -> None:
+    def __init__(self, C: G1Element, pi: ZeroKnowledgeProof) -> None:
         self.C = C
+        self.pi = pi
 
 
 class BlindSignature:
@@ -184,14 +205,14 @@ def create_issue_request(
         )
     t = G1.order().random()
     user_state = (t, user_attributes)
+    zkp = create_zero_knowledge_proof(pk, t, user_attributes)
     if len(user_attributes) == 0:
         # deals early with the case where no user attributes to sign
-        return user_state, IssueRequest(pk.g**t)
+        return user_state, IssueRequest(pk.g**t, zkp)
     # must take into account the Y_list index are in [0,L-1] and attributes in [1,L]
     Y_a_list = [pk.Y_list[i - 1] ** user_attributes[i] for i in user_attributes.keys()]
     commit_product = (pk.g**t) * G1.prod(Y_a_list)
-
-    return user_state, IssueRequest(commit_product)
+    return user_state, IssueRequest(commit_product, zkp)
 
 
 def sign_issue_request(
@@ -300,21 +321,51 @@ def check_attribute_map(attributes: AttributeMap, L: int) -> bool:
 
 
 def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
-    """Converts an attribute map to a list of encoded attributes. Assumes no sorting of the incoming map and returns a sorted map"""
+    """Converts an attribute map to a list of encoded attributes. Assumes no sorting of the incoming map and returns list of values sorted by their previous map's keys"""
     # we take care of sorting attributes by keys in order to have it consistent with the list representation
     sorted_attributes = dict(sorted(attributes.items()))
     return list(map(lambda bn: jsonpickle.encode(bn), sorted_attributes.values()))
 
 
-def create_zero_knowledge_proof(pk: PublicKey, secret_exponent: Bn, user_attributes: AttributeMap, C: G1Element
-) -> Signature:
-    r = G1.order().random()
-    R = pk.g**r
-    # takes care of sorting the attributes and encodes with pickle as a message
-    m = jsonpickle.encode(dict(sorted(user_attributes.items())))
-    c = sha256(str(jsonpickle.encode((pk.pk, R, C))).encode()).hexdigest()
-    s = r + Bn.from_hex(c)
-    return Signature(c, s)
+def create_zero_knowledge_proof(
+    pk: PublicKey, t: Bn, user_attributes: AttributeMap
+) -> ZeroKnowledgeProof:
+    randoms = [G1.order().random()]
+    U = len(user_attributes)
+    commit = pk.g ** randoms[0]
+    sorted_user_attributes = dict(sorted(user_attributes.items()))
+    if U > 0:
+        r_list = [G1.order().random() for _ in range(U)]
+        # Computes the list of Y_i^r_j for i in U (user attributes' indexes) and j in [1,...,|U|] (number of user attributes)
+        Y_s_prod = [
+            pk.Y_list[i - 1] ** r_list[j]
+            for j, i in enumerate(sorted_user_attributes.keys())
+        ]
+        randoms += r_list
+        commit *= G1.prod(Y_s_prod)
+    challenge = Bn.from_hex(
+        sha256(str(jsonpickle.encode((pk.pk, commit))).encode()).hexdigest()
+    )
+    responses = [randoms[0] + challenge * t]
+    response_index = []
+    if U > 0:
+        # computes a list of responses s = r + c * a_i
+        responses += [
+            rnd + challenge * attr
+            for rnd, attr in zip(randoms[1:], sorted_user_attributes.values())
+        ]
+        response_index = list(zip(responses[1:], sorted_user_attributes.keys()))
+    return ZeroKnowledgeProof(challenge, responses[0], response_index)
 
-def verify_zero_knowledge_proof(pi: Signature, pk: PublicKey, C: G1Element) -> bool:
-    pass
+
+def verify_zero_knowledge_proof(issue_req: IssueRequest, pk: PublicKey) -> bool:
+    C, pi = issue_req.C, issue_req.pi
+    commit = pk.g**pi.response_0 * C ** (-pi.challenge)
+    if len(pi.response_index) > 0:
+        commit *= G1.prod(
+            [pk.Y_list[index - 1] ** resp for resp, index in pi.response_index]
+        )
+    challenge_prime = Bn.from_hex(
+        sha256(str(jsonpickle.encode((pk.pk, commit))).encode()).hexdigest()
+    )
+    return pi.challenge == challenge_prime

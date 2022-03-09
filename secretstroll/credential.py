@@ -38,7 +38,7 @@ AttributeMap = dict[int, Bn]
 # IssueRequest = Any
 # BlindSignature = Any
 # AnonymousCredential = Any
-DisclosureProof = Any
+# DisclosureProof = Any
 UserState = Tuple[Bn, AttributeMap]
 
 
@@ -112,6 +112,12 @@ class AnonymousCredential:
         self.sigma = sigma
         self.attributes = attributes
 
+
+class DisclosureProof: 
+    def init(self, sigma: Signature, disclosed_attributes: AttributeMap, proof: ZeroKnowledgeProof) -> None: 
+        self.sigma = sigma
+        self.disclosed_attributes = disclosed_attributes 
+        self.pi = proof 
 
 ######################
 ## SIGNATURE SCHEME ##
@@ -290,6 +296,8 @@ def create_disclosure_proof(
     r, t = G1.order().random(), G1.order().random()
     rnd_sigma_1 = credential.sigma.sigma1**r
     rnd_sigma_2 = (credential.sigma.sigma2 * credential.sigma.sigma1**t) ** r
+
+
     pass
 
 
@@ -300,6 +308,17 @@ def verify_disclosure_proof(
 
     Hint: The verifier may also want to retrieve the disclosed attributes
     """
+    if disclosure_proof.sigma.sigma1 == G1.unity:
+        return False
+
+    # sigma2_ghat = disclosure_proof.sigma.sigma2.pair(pk.g_hat)
+    # sigma1_Y_a_list = [disclosure_proof.sigma.sigma1.pair(pk.Y_list[i - 1])  ** disclosure_proof.disclosed_attributes[i] for i in disclosure_proof.disclosed_attributes.keys()]
+    # sigma1_Xhat = disclosure_proof.sigma.sigma1.pair(pk.X_hat)
+
+    # left_side = (sigma2_ghat * G1.prod(sigma1_Y_a_list)) / sigma1_Xhat
+
+    # sigma1_ghat_t = disclosure_proof.sigma.sigma1.pair(pk.g_hat) ** disclosure_proof.pi.
+
     raise NotImplementedError()
 
 

@@ -130,3 +130,14 @@ dmypy.json
 
 # MacOS files
 .DS_Store
+
+# tor generated cache files when image built
+secretstroll/tor/.tor/cached-certs
+secretstroll/tor/.tor/cached-microdesc-consensus
+secretstroll/tor/.tor/cached-microdescs
+secretstroll/tor/.tor/cached-microdescs.new
+secretstroll/tor/.tor/lock
+secretstroll/tor/.tor/state
+secretstroll/tor/hidden_service/hostname
+secretstroll/tor/hidden_service/hs_ed25519_public_key
+secretstroll/tor/hidden_service/hs_ed25519_secret_key

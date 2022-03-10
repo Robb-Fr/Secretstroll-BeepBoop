@@ -119,6 +119,7 @@ class DisclosureProof:
         self.disclosed_attributes = disclosed_attributes 
         self.pi = proof 
 
+
 ######################
 ## SIGNATURE SCHEME ##
 ######################
@@ -290,15 +291,23 @@ def create_disclosure_proof(
     pk: PublicKey,
     credential: AnonymousCredential,
     hidden_attributes: List[Attribute],
-    message: bytes,
+    message: bytes, #TODO: wtf do we do with this 
 ) -> DisclosureProof:
     """Create a disclosure proof"""
     r, t = G1.order().random(), G1.order().random()
     rnd_sigma_1 = credential.sigma.sigma1**r
     rnd_sigma_2 = (credential.sigma.sigma2 * credential.sigma.sigma1**t) ** r
+    sign = Signature(rnd_sigma_1, rnd_sigma_2)
 
+    sigma1_ghat_t = rnd_sigma_1.pair(pk.g_hat) ** t
+    sigma1_Yhat_a_list = [rnd_sigma_1.pair(pk.Y_list[i - 1])  ** hidden_attributes[i] for i in hidden_attributes.keys()]
+    right_side = sigma1_ghat_t * G1.prod(sigma1_Yhat_a_list)
 
-    pass
+    pi = ZeroKnowledgeProof() #TODO: here my proof is right_side and it should be verified with regards to leftside (see Showing 2.b of ABC)
+
+    disclosed_attributes = [] #TODO: we should maybe do the common input part of the showing protocol to have this
+
+    return DisclosureProof(sign, disclosed_attributes, pi)
 
 
 def verify_disclosure_proof(
@@ -311,13 +320,13 @@ def verify_disclosure_proof(
     if disclosure_proof.sigma.sigma1 == G1.unity:
         return False
 
-    # sigma2_ghat = disclosure_proof.sigma.sigma2.pair(pk.g_hat)
-    # sigma1_Y_a_list = [disclosure_proof.sigma.sigma1.pair(pk.Y_list[i - 1])  ** disclosure_proof.disclosed_attributes[i] for i in disclosure_proof.disclosed_attributes.keys()]
-    # sigma1_Xhat = disclosure_proof.sigma.sigma1.pair(pk.X_hat)
+    sigma2_ghat = disclosure_proof.sigma.sigma2.pair(pk.g_hat)
+    sigma1_Y_a_list = [disclosure_proof.sigma.sigma1.pair(pk.Y_list[i - 1])  ** disclosure_proof.disclosed_attributes[i] for i in disclosure_proof.disclosed_attributes.keys()]
+    sigma1_Xhat = disclosure_proof.sigma.sigma1.pair(pk.X_hat)
 
-    # left_side = (sigma2_ghat * G1.prod(sigma1_Y_a_list)) / sigma1_Xhat
+    left_side = (sigma2_ghat * G1.prod(sigma1_Y_a_list)) / sigma1_Xhat
 
-    # sigma1_ghat_t = disclosure_proof.sigma.sigma1.pair(pk.g_hat) ** disclosure_proof.pi.
+
 
     raise NotImplementedError()
 

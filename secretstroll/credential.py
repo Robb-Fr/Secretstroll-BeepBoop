@@ -23,7 +23,7 @@ from serialization import jsonpickle
 from petrelic.bn import Bn
 
 # Multiplicative pairing to preserve PS guide notations
-from petrelic.multiplicative.pairing import G1Element, G2Element, G1, G2
+from petrelic.multiplicative.pairing import G1Element, G2Element, G1, G2, GTElement, GT
 
 from hashlib import sha256
 
@@ -72,7 +72,7 @@ class Signature:
         self.sigma2 = self.sigma[1]
 
 
-class ZeroKnowledgeProof:
+class PedersenZeroKnowledgeProof:
     def __init__(
         self, challenge: Bn, response_0: Bn, response_attr_index: List[Tuple[Bn, int]]
     ) -> None:
@@ -92,7 +92,7 @@ class ZeroKnowledgeProof:
 
 
 class IssueRequest:
-    def __init__(self, C: G1Element, pi: ZeroKnowledgeProof) -> None:
+    def __init__(self, C: G1Element, pi: PedersenZeroKnowledgeProof) -> None:
         self.C = C
         self.pi = pi
 
@@ -114,7 +114,7 @@ class AnonymousCredential:
 
 
 class DisclosureProof: 
-    def init(self, sigma: Signature, disclosed_attributes: AttributeMap, proof: ZeroKnowledgeProof) -> None: 
+    def init(self, sigma: Signature, disclosed_attributes: AttributeMap, proof: GTElement) -> None: 
         self.sigma = sigma
         self.disclosed_attributes = disclosed_attributes 
         self.pi = proof 
@@ -303,11 +303,11 @@ def create_disclosure_proof(
     sigma1_Yhat_a_list = [rnd_sigma_1.pair(pk.Y_list[i - 1])  ** hidden_attributes[i] for i in hidden_attributes.keys()]
     right_side = sigma1_ghat_t * G1.prod(sigma1_Yhat_a_list)
 
-    pi = ZeroKnowledgeProof() #TODO: here my proof is right_side and it should be verified with regards to leftside (see Showing 2.b of ABC)
+    #pi = PedersenZeroKnowledgeProof() #TODO: here my proof is right_side and it should be verified with regards to leftside (see Showing 2.b of ABC)
 
     disclosed_attributes = [] #TODO: we should maybe do the common input part of the showing protocol to have this
 
-    return DisclosureProof(sign, disclosed_attributes, pi)
+    return DisclosureProof(sign, disclosed_attributes, right_side)
 
 
 def verify_disclosure_proof(
@@ -324,11 +324,14 @@ def verify_disclosure_proof(
     sigma1_Y_a_list = [disclosure_proof.sigma.sigma1.pair(pk.Y_list[i - 1])  ** disclosure_proof.disclosed_attributes[i] for i in disclosure_proof.disclosed_attributes.keys()]
     sigma1_Xhat = disclosure_proof.sigma.sigma1.pair(pk.X_hat)
 
-    left_side = (sigma2_ghat * G1.prod(sigma1_Y_a_list)) / sigma1_Xhat
+    left_side = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
 
+    if left_side != disclosure_proof.pi:
+        return False
 
+    
 
-    raise NotImplementedError()
+    return True
 
 
 ####################################
@@ -357,7 +360,7 @@ def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
 
 def create_zero_knowledge_proof(
     pk: PublicKey, t: Bn, user_attributes: AttributeMap
-) -> ZeroKnowledgeProof:
+) -> PedersenZeroKnowledgeProof:
     randoms = [G1.order().random()]
     U = len(user_attributes)
     commit = pk.g ** randoms[0]
@@ -383,7 +386,7 @@ def create_zero_knowledge_proof(
             for rnd, attr in zip(randoms[1:], sorted_user_attributes.values())
         ]
         response_index = list(zip(responses[1:], sorted_user_attributes.keys()))
-    return ZeroKnowledgeProof(challenge, responses[0], response_index)
+    return PedersenZeroKnowledgeProof(challenge, responses[0], response_index)
 
 
 def verify_zero_knowledge_proof(issue_req: IssueRequest, pk: PublicKey) -> bool:

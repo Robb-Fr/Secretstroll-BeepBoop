@@ -28,5 +28,5 @@ jobs:
           pip install -r requirements.txt
       - name: Run tests with pytest
         run: |
-          cd secretstroll && python3 -m pytest --count=100 -n 4
+          python3 -m pytest secretstroll --count=50 -n 2
    

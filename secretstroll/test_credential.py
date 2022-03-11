@@ -74,16 +74,17 @@ def test_obtaining_credentials_succes():
     # if no error thrown, success
 
 
-def test_zkp_success():
+def test_issue_request_kp_success():
     list_len = random.randint(1, 10)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
     user_state, issue_req = create_issue_request(Pk, user_attributes)
-    assert verify_zero_knowledge_proof(issue_req, Pk)
+    assert verify_issue_request_knowledge_proof(issue_req, Pk)
 
 
 ## SHOWING PROTOCOL ##
+
 
 def test_disclosure_proof_verification():
     list_len = random.randint(1, 10)
@@ -101,7 +102,6 @@ def test_disclosure_proof_verification():
     disc_proof = create_disclosure_proof(Pk, anon_cred, hidden_attributes, msgs[0])
 
     assert verify_disclosure_proof(Pk, disc_proof, msgs[0])
-
 
 
 ####################################

@@ -72,7 +72,7 @@ class Signature:
         self.sigma2 = self.sigma[1]
 
 
-class PedersenZeroKnowledgeProof:
+class PedersenKnowledgeProof:
     def __init__(
         self, challenge: Bn, response_0: Bn, response_attr_index: List[Tuple[Bn, int]]
     ) -> None:
@@ -92,7 +92,7 @@ class PedersenZeroKnowledgeProof:
 
 
 class IssueRequest:
-    def __init__(self, C: G1Element, pi: PedersenZeroKnowledgeProof) -> None:
+    def __init__(self, C: G1Element, pi: PedersenKnowledgeProof) -> None:
         self.C = C
         self.pi = pi
 
@@ -113,11 +113,13 @@ class AnonymousCredential:
         self.attributes = attributes
 
 
-class DisclosureProof: 
-    def init(self, sigma: Signature, disclosed_attributes: AttributeMap, proof: GTElement) -> None: 
+class DisclosureProof:
+    def init(
+        self, sigma: Signature, disclosed_attributes: AttributeMap, proof: GTElement
+    ) -> None:
         self.sigma = sigma
-        self.disclosed_attributes = disclosed_attributes 
-        self.pi = proof 
+        self.disclosed_attributes = disclosed_attributes
+        self.pi = proof
 
 
 ######################
@@ -212,7 +214,7 @@ def create_issue_request(
         )
     t = G1.order().random()
     user_state = (t, user_attributes)
-    zkp = create_zero_knowledge_proof(pk, t, user_attributes)
+    zkp = create_issue_request_knowledge_proof(pk, t, user_attributes)
     if len(user_attributes) == 0:
         # deals early with the case where no user attributes to sign
         return user_state, IssueRequest(pk.g**t, zkp)
@@ -233,7 +235,10 @@ def sign_issue_request(
         raise ValueError(
             "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L]"
         )
-    # TODO implement the proof check
+    if not verify_issue_request_knowledge_proof(request, pk):
+        raise ValueError(
+            "Incorrect proof of knowledge associated with the issue request"
+        )
     u = G1.order().random()
     g_u = pk.g**u
     if len(issuer_attributes) == 0:
@@ -291,7 +296,7 @@ def create_disclosure_proof(
     pk: PublicKey,
     credential: AnonymousCredential,
     hidden_attributes: List[Attribute],
-    message: bytes, #TODO: wtf do we do with this 
+    message: bytes,  # TODO: wtf do we do with this
 ) -> DisclosureProof:
     """Create a disclosure proof"""
     r, t = G1.order().random(), G1.order().random()
@@ -300,12 +305,17 @@ def create_disclosure_proof(
     sign = Signature(rnd_sigma_1, rnd_sigma_2)
 
     sigma1_ghat_t = rnd_sigma_1.pair(pk.g_hat) ** t
-    sigma1_Yhat_a_list = [rnd_sigma_1.pair(pk.Y_list[i - 1])  ** hidden_attributes[i] for i in hidden_attributes.keys()]
+    sigma1_Yhat_a_list = [
+        rnd_sigma_1.pair(pk.Y_list[i - 1]) ** hidden_attributes[i]
+        for i in hidden_attributes.keys()
+    ]
     right_side = sigma1_ghat_t * G1.prod(sigma1_Yhat_a_list)
 
-    #pi = PedersenZeroKnowledgeProof() #TODO: here my proof is right_side and it should be verified with regards to leftside (see Showing 2.b of ABC)
+    # pi = PedersenZeroKnowledgeProof() #TODO: here my proof is right_side and it should be verified with regards to leftside (see Showing 2.b of ABC)
 
-    disclosed_attributes = [] #TODO: we should maybe do the common input part of the showing protocol to have this
+    disclosed_attributes = (
+        []
+    )  # TODO: we should maybe do the common input part of the showing protocol to have this
 
     return DisclosureProof(sign, disclosed_attributes, right_side)
 
@@ -321,15 +331,17 @@ def verify_disclosure_proof(
         return False
 
     sigma2_ghat = disclosure_proof.sigma.sigma2.pair(pk.g_hat)
-    sigma1_Y_a_list = [disclosure_proof.sigma.sigma1.pair(pk.Y_list[i - 1])  ** disclosure_proof.disclosed_attributes[i] for i in disclosure_proof.disclosed_attributes.keys()]
+    sigma1_Y_a_list = [
+        disclosure_proof.sigma.sigma1.pair(pk.Y_list[i - 1])
+        ** disclosure_proof.disclosed_attributes[i]
+        for i in disclosure_proof.disclosed_attributes.keys()
+    ]
     sigma1_Xhat = disclosure_proof.sigma.sigma1.pair(pk.X_hat)
 
     left_side = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
 
     if left_side != disclosure_proof.pi:
         return False
-
-    
 
     return True
 
@@ -358,9 +370,10 @@ def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
     return list(map(lambda bn: jsonpickle.encode(bn), sorted_attributes.values()))
 
 
-def create_zero_knowledge_proof(
+def create_issue_request_knowledge_proof(
     pk: PublicKey, t: Bn, user_attributes: AttributeMap
-) -> PedersenZeroKnowledgeProof:
+) -> PedersenKnowledgeProof:
+    """Create the Zero Knowledge Proof object that shows knowledge of commit value t and attributes (a_i) for i in U, the user attributes hidden to issuer. Follows the Pederson commitment implementation from Exercice Set 1.2 with a non-interactive adaptation"""
     randoms = [G1.order().random()]
     U = len(user_attributes)
     commit = pk.g ** randoms[0]
@@ -377,21 +390,24 @@ def create_zero_knowledge_proof(
     challenge = Bn.from_hex(
         sha256(str(jsonpickle.encode((pk.pk, commit))).encode()).hexdigest()
     )
-    responses = [randoms[0] + challenge * t]
+    responses = [randoms[0] - challenge * t]
     response_index = []
     if U > 0:
-        # computes a list of responses s = r + c * a_i
+        # computes a list of responses s = r - c * a_i
         responses += [
-            rnd + challenge * attr
+            rnd - challenge * attr
             for rnd, attr in zip(randoms[1:], sorted_user_attributes.values())
         ]
         response_index = list(zip(responses[1:], sorted_user_attributes.keys()))
-    return PedersenZeroKnowledgeProof(challenge, responses[0], response_index)
+    return PedersenKnowledgeProof(challenge, responses[0], response_index)
 
 
-def verify_zero_knowledge_proof(issue_req: IssueRequest, pk: PublicKey) -> bool:
+def verify_issue_request_knowledge_proof(
+    issue_req: IssueRequest, pk: PublicKey
+) -> bool:
+    """Verifies the Zero Knowledge Proof object that shows knowledge of commit value t and attributes (a_i) for i in U, the user attributes hidden to issuer. Follows the Pederson commitment implementation from Exercice Set 1.2 with a non-interactive adaptation"""
     C, pi = issue_req.C, issue_req.pi
-    commit = pk.g**pi.response_0 * C ** (-pi.challenge)
+    commit = C**pi.challenge * pk.g**pi.response_0
     if len(pi.response_index) > 0:
         commit *= G1.prod(
             [pk.Y_list[index - 1] ** resp for resp, index in pi.response_index]

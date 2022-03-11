@@ -1,5 +1,8 @@
+from multiprocessing.sharedctypes import Value
+from operator import le
 import random
 from typing import List
+import py
 import pytest
 import sys
 
@@ -83,9 +86,63 @@ def test_issue_request_kp_success():
     assert verify_issue_request_knowledge_proof(issue_req, Pk)
 
 
+def test_obtaining_credential_fail():
+    # setup parameters
+    list_len = random.randint(1, 10)
+    attributes = [G1.order().random() for _ in range(list_len)]
+    Sk, Pk = generate_key(attributes)
+    user_attributes, issuer_attributes = randomly_split_attributes(attributes)
+    # start request
+    with pytest.raises(ValueError):
+        bad_attr_map = create_failing_map(user_attributes, Pk)
+        create_issue_request(Pk, bad_attr_map)
+
+    user_state, issue_req = create_issue_request(Pk, user_attributes)
+
+    with pytest.raises(ValueError):
+        bad_attr_map = create_failing_map(issuer_attributes, Pk)
+        sign_issue_request(Sk, Pk, issue_req, bad_attr_map)
+    with pytest.raises(ValueError):
+        fake_keys = generate_key(attributes)
+        sign_issue_request(fake_keys[0], fake_keys[1], issue_req, issuer_attributes)
+    with pytest.raises(ValueError):
+        fake_keys = generate_key(attributes)
+        fake_state, fake_issue_request = create_issue_request(
+            fake_keys[1], user_attributes
+        )
+        sign_issue_request(Sk, Pk, fake_issue_request, issuer_attributes)
+
+    blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
+    with pytest.raises(ValueError):
+        fake_keys = generate_key(attributes)
+        obtain_credential(fake_keys[1], blind_sig, user_state)
+    with pytest.raises(ValueError):
+        fake_keys = generate_key(attributes)
+        fake_state, fake_issue_request = create_issue_request(
+            fake_keys[1], user_attributes
+        )
+        fake_sig = sign_issue_request(
+            fake_keys[0], fake_keys[1], fake_issue_request, issuer_attributes
+        )
+        obtain_credential(Pk, fake_sig, fake_state)
+    with pytest.raises(ValueError):
+        obtain_credential(Pk, blind_sig, (G1.order().random(), user_attributes))
+    with pytest.raises(ValueError):
+        fake_user_attributes = user_attributes.copy()
+        if len(user_attributes) > 0:
+            fake_user_attributes[
+                random.choice(list(fake_user_attributes.keys()))
+            ] = G1.order().random()
+        else:
+            raise ValueError(
+                "This case should expectedly not raise an error, for the test success we raise it voluntarly"
+            )
+        obtain_credential(Pk, blind_sig, (user_state[0], fake_user_attributes))
+
+
 ## SHOWING PROTOCOL ##
 
-
+"""
 def test_disclosure_proof_verification():
     list_len = random.randint(1, 10)
     attributes = [G1.order().random() for _ in range(list_len)]
@@ -102,7 +159,7 @@ def test_disclosure_proof_verification():
     disc_proof = create_disclosure_proof(Pk, anon_cred, hidden_attributes, msgs[0])
 
     assert verify_disclosure_proof(Pk, disc_proof, msgs[0])
-
+"""
 
 ####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##
@@ -122,3 +179,25 @@ def randomly_split_attributes(
     issuer_attributes = dict(shuffled_attributes[split_index:])
 
     return user_attributes, issuer_attributes
+
+
+def create_failing_map(attributes: AttributeMap, Pk: PublicKey) -> AttributeMap:
+    """Creates an attributes map that should fail check_attribute_map"""
+    list_len = Pk.L
+    bad_key = random.choice(
+        [random.randint(-1000, 0), random.randint(list_len + 1, 1000)]
+    )  # a key that is not in [1,L]
+    good_key = (
+        random.choice(list(attributes.keys())) if len(attributes) > 0 else 0
+    )  # a key in the interval (0 if empty -> value won't be used)
+    too_long_attributes = attributes.copy()
+    for i in range(list_len + random.randint(1, 10) - len(attributes)):
+        # we make the dictionnary too big
+        too_long_attributes[bad_key + i] = G1.order().random()
+    bad_key_attributes = attributes.copy()
+    if len(attributes) > 0:
+        # we replace a good key by a bad key
+        bad_key_attributes.pop(good_key)
+    # if was empty, should anyway fail as above
+    bad_key_attributes[bad_key] = G1.order().random()
+    return random.choice([too_long_attributes, bad_key_attributes])

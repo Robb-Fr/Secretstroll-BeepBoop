@@ -24,9 +24,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          cd secretstroll
-          pip install -r requirements.txt
+          pip install -r secretstroll/requirements.txt
       - name: Run tests with pytest
         run: |
-          cd secretstroll && python3 -m pytest --count=100 -n 4
+          python3 -m pytest secretstroll --count=50 -n 2
    

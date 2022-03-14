@@ -7,5 +7,5 @@ Run tests:
 
 (make sure that `pytest-repeat` and `pytest-xdist` are installed, `pip install pytest-repeat` and `pip install pytest-xdist`)
 ```bash
-cd secretstroll; python3 -m pytest -n 2 --count=100
+python3 -m pytest secretstroll -n 2 --count=100
 ```

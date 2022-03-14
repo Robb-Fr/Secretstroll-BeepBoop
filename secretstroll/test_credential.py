@@ -160,14 +160,9 @@ def test_disclosure_proof_verification():
 
     assert disclosed_attributes == disc_proof.disclosed_attributes
 
-<<<<<<< HEAD
     assert verify_disclosure_proof(Pk, disc_proof, msg)
 
-
-=======
-    assert verify_disclosure_proof(Pk, disc_proof, msgs[0])
 """
->>>>>>> 17c5551255400666ed538467a3fe76ba0b8eb0d5
 
 ####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##

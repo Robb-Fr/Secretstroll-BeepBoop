@@ -86,7 +86,7 @@ def test_zkp_success():
 ## SHOWING PROTOCOL ##
 
 def test_disclosure_proof_verification():
-    list_len = random.randint(1, 10)
+    list_len = random.randint(1, 20)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
@@ -95,12 +95,14 @@ def test_disclosure_proof_verification():
     blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
     anon_cred = obtain_credential(Pk, blind_sig, user_state)
 
-    hidden_attributes, disclosed_attributed = randomly_split_attributes(user_attributes)
-    msgs = attributes_to_bytes(dict(enumerate(disclosed_attributed)))
+    hidden_attributes, disclosed_attributes = randomly_split_attributes(user_attributes)
+    msg = bytes(0)
 
-    disc_proof = create_disclosure_proof(Pk, anon_cred, hidden_attributes, msgs[0])
+    disc_proof = create_disclosure_proof(Pk, anon_cred, hidden_attributes, msg)
 
-    assert verify_disclosure_proof(Pk, disc_proof, msgs[0])
+    assert disclosed_attributes == disc_proof.disclosed_attributes
+
+    assert verify_disclosure_proof(Pk, disc_proof, msg)
 
 
 

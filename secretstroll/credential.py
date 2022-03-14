@@ -290,22 +290,26 @@ def obtain_credential(
 def create_disclosure_proof(
     pk: PublicKey,
     credential: AnonymousCredential,
-    hidden_attributes: List[Attribute],
+    hidden_attributes: AttributeMap,
     message: bytes, #TODO: wtf do we do with this 
 ) -> DisclosureProof:
     """Create a disclosure proof"""
+    sorted_hidden_attributes = dict(sorted(hidden_attributes.items()))
+
     r, t = G1.order().random(), G1.order().random()
     rnd_sigma_1 = credential.sigma.sigma1**r
     rnd_sigma_2 = (credential.sigma.sigma2 * credential.sigma.sigma1**t) ** r
     sign = Signature(rnd_sigma_1, rnd_sigma_2)
 
     sigma1_ghat_t = rnd_sigma_1.pair(pk.g_hat) ** t
-    sigma1_Yhat_a_list = [rnd_sigma_1.pair(pk.Y_list[i - 1])  ** hidden_attributes[i] for i in hidden_attributes.keys()]
+    sigma1_Yhat_a_list = [rnd_sigma_1.pair(pk.Y_list[i - 1])  ** sorted_hidden_attributes[i] for i in sorted_hidden_attributes.keys()]
     right_side = sigma1_ghat_t * G1.prod(sigma1_Yhat_a_list)
 
     #pi = PedersenZeroKnowledgeProof() #TODO: here my proof is right_side and it should be verified with regards to leftside (see Showing 2.b of ABC)
 
-    disclosed_attributes = [] #TODO: we should maybe do the common input part of the showing protocol to have this
+    disclosed_attributes = credential.attributes.copy()
+    for key in hidden_attributes.keys():
+        disclosed_attributes.pop(key)
 
     return DisclosureProof(sign, disclosed_attributes, right_side)
 
@@ -320,8 +324,11 @@ def verify_disclosure_proof(
     if disclosure_proof.sigma.sigma1 == G1.unity:
         return False
 
+    sorted_disclosed_attributes = dict(sorted(disclosure_proof.disclosed_attributes.items()))
+
+
     sigma2_ghat = disclosure_proof.sigma.sigma2.pair(pk.g_hat)
-    sigma1_Y_a_list = [disclosure_proof.sigma.sigma1.pair(pk.Y_list[i - 1])  ** disclosure_proof.disclosed_attributes[i] for i in disclosure_proof.disclosed_attributes.keys()]
+    sigma1_Y_a_list = [disclosure_proof.sigma.sigma1.pair(pk.Y_list[i - 1])  ** sorted_disclosed_attributes[i] for i in sorted_disclosed_attributes.keys()]
     sigma1_Xhat = disclosure_proof.sigma.sigma1.pair(pk.X_hat)
 
     left_side = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat

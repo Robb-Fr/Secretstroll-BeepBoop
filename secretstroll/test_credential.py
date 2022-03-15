@@ -142,7 +142,7 @@ def test_obtaining_credential_fail():
 
 ## SHOWING PROTOCOL ##
 
-"""
+
 def test_disclosure_proof_verification():
     list_len = random.randint(1, 20)
     attributes = [G1.order().random() for _ in range(list_len)]
@@ -153,16 +153,15 @@ def test_disclosure_proof_verification():
     blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
     anon_cred = obtain_credential(Pk, blind_sig, user_state)
 
-    hidden_attributes, disclosed_attributes = randomly_split_attributes(user_attributes)
+    hidden_attributes, disclosed_attributes = randomly_split_attributes(attributes)
     msg = bytes(0)
 
     disc_proof = create_disclosure_proof(Pk, anon_cred, hidden_attributes, msg)
 
-    assert disclosed_attributes == disc_proof.disclosed_attributes
+    #assert disclosed_attributes == disc_proof.disclosed_attributes
 
-    assert verify_disclosure_proof(Pk, disc_proof, msg)
+    assert verify_disclosure_proof(Pk, disc_proof, disclosed_attributes, msg)
 
-"""
 
 ####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##

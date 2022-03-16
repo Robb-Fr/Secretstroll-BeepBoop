@@ -116,7 +116,7 @@ class AnonymousCredential:
 
 class DisclosureProof:
     def __init__(
-        self, sigma: Signature, proof: GTElement
+        self, sigma: Signature, proof: PedersenKnowledgeProof
     ) -> None:
         self.sigma = sigma
         self.pi = proof
@@ -298,17 +298,57 @@ def create_disclosure_proof(
     hidden_attributes: AttributeMap,
     message: bytes
 ) -> DisclosureProof:
-    """Create a disclosure proof"""
-    sorted_hidden_attributes = dict(sorted(hidden_attributes.items()))
+    """
+    Create a disclosure proof
 
-    r, t = G1.order().random(), G1.order().random()
+    See ABC_guide, Showing Protocol 2.b for the proof. 
+    We have a proof such that pi = PK{(t,hidden attributes) : left_side(disclosed attributes) = right_side(t, hidden_attributes)}
+
+    To create the proof we compute the right_side with random elements instead of the secrets. This is our R value. We then send a challenge based on R as well as elements constructed from the secrets and their random counterparts (responses)
+    """
+    sorted_hidden_attributes = dict(sorted(hidden_attributes.items()))
+    U = len(sorted_hidden_attributes)
+
+    r, t = GT.order().random(), GT.order().random()
+    randoms = [GT.order().random()]
+
+
+    # Compute the right side of the proof with fake secrets as the commit 
     rnd_sigma_1 = credential.sigma.sigma1**r
     rnd_sigma_2 = (credential.sigma.sigma2 * credential.sigma.sigma1**t) ** r
     sign = Signature(rnd_sigma_1, rnd_sigma_2)
 
-    sigma1_ghat_t = rnd_sigma_1.pair(pk.g_hat) ** t
-    sigma1_Yhat_a_list = [rnd_sigma_1.pair(pk.Y_hat_list[i - 1])  ** sorted_hidden_attributes[i] for i in sorted_hidden_attributes.keys()]
-    right_side = sigma1_ghat_t * GT.prod(sigma1_Yhat_a_list)
+    sigma1_ghat_t = rnd_sigma_1.pair(pk.g_hat) ** randoms[0]
+    sigma1_Yhat_a_list = [rnd_sigma_1.pair(pk.Y_hat_list[i - 1]) ** ai_prime for (i,ai_prime) in enumerate(randoms[1:])]
+    if U > 0:
+        ai_prime_list = [GT.order().random() for _ in range(U)]
+        # Computes the list of Y_i^r_j for i in U (user attributes' indexes) and j in [1,...,|U|] (number of user attributes)
+        Y_hat_s_prod = [
+            rnd_sigma_1.pair(pk.Y_hat_list[i - 1]) ** ai_prime_list[ai_index]
+            for ai_index, i in enumerate(sorted_hidden_attributes.keys())
+        ]
+        randoms += ai_prime_list
+
+    R = sigma1_ghat_t * GT.prod(Y_hat_s_prod) 
+
+    challenge = Bn.from_hex(
+        sha256(str(jsonpickle.encode((pk.pk, R))).encode()).hexdigest()
+    )
+
+    responses = [randoms[0] - challenge*t] # st' = t' - Ct
+    response_index = []
+    if U > 0:
+        # computes a list of responses s = r - c * a_i
+        responses += [
+            rnd - challenge * attr
+            for rnd, attr in zip(randoms[1:], sorted_hidden_attributes.values())
+        ]
+        response_index = list(zip(responses[1:], sorted_hidden_attributes.keys()))
+
+    proof = PedersenKnowledgeProof(challenge, responses[0], response_index)
+    
+    #proof = PedersenKnowledgeProof(challenge, s_t_prime, response_index)
+
 
     # pi = PedersenZeroKnowledgeProof() #TODO: here my proof is right_side and it should be verified with regards to leftside (see Showing 2.b of ABC)
 
@@ -317,32 +357,59 @@ def create_disclosure_proof(
     # for key in hidden_attributes.keys():
     #     disclosed_attributes.pop(key)
 
-    return DisclosureProof(sign, right_side)
+
+
+    return DisclosureProof(sign, proof)
 
 
 def verify_disclosure_proof(
     pk: PublicKey, disclosure_proof: DisclosureProof, disclosed_attributed: AttributeMap, message: bytes
 ) -> bool:
-    """Verify the disclosure proof
+    """
+    Verify the disclosure proof
 
     Hint: The verifier may also want to retrieve the disclosed attributes
+
+    See ABC_guide, Showing Protocol 2.b for the proof. 
+    We have a proof such that pi = PK{(t,hidden attributes) : left_side(disclosed attributes) = right_side(t, hidden_attributes)}
+
+    To verify, we first compute the left_side which is independent of the secrets.
+    We then compute the right_side with the proof responses (secret - c*random) -> right_side_prime
+    Then we compute R' = (left_side ** c)*right_side_prime
+    Since left = right, R' should be equal to R
+    We verify this by comparing challenge(R) and challenge(R')
+    This concludes our proof
     """
+
+    # Need to verify that sigma1 is not the unity element in G1
     if disclosure_proof.sigma.sigma1 == G1.unity:
         return False
 
     sorted_disclosed_attributes = dict(sorted(disclosed_attributed.items()))
 
+    sign = disclosure_proof.sigma
 
-    sigma2_ghat = disclosure_proof.sigma.sigma2.pair(pk.g_hat)
-    sigma1_Y_a_list = [disclosure_proof.sigma.sigma1.pair(pk.Y_hat_list[i - 1])  ** sorted_disclosed_attributes[i] for i in sorted_disclosed_attributes.keys()]
-    sigma1_Xhat = disclosure_proof.sigma.sigma1.pair(pk.X_hat)
+    # Compute left side of proof (commit)
+    sigma2_ghat = sign.sigma2.pair(pk.g_hat)
+    sigma1_Y_a_list = [sign.sigma1.pair(pk.Y_hat_list[i - 1])  ** -sorted_disclosed_attributes[i] for i in sorted_disclosed_attributes.keys()]
+    sigma1_Xhat = sign.sigma1.pair(pk.X_hat)
+    commit = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
 
-    left_side = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
+    # Compute R' (right side under t', ai')
+    t_prime = disclosure_proof.pi.response_0
+    ai_prime = disclosure_proof.pi.response_index
+    com_c = commit ** disclosure_proof.pi.challenge
+    ghat_tprime = sign.sigma1.pair(pk.g_hat) ** t_prime
+    sigma1_Yhat_a_list = [sign.sigma1.pair(pk.Y_hat_list[index - 1]) ** resp for (resp, index) in ai_prime]
+    R_prime = com_c * ghat_tprime * GT.prod(sigma1_Yhat_a_list) 
 
-    if left_side != disclosure_proof.pi:
-        return False
+    # Compute challenge of R' 
+    challenge_prime = Bn.from_hex(
+        sha256(str(jsonpickle.encode((pk.pk, R_prime))).encode()).hexdigest()
+    )
 
-    return True
+    # Check challenge(R) = challenge(R')
+    return disclosure_proof.pi.challenge == challenge_prime
 
 
 ####################################

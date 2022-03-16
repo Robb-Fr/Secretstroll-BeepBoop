@@ -162,6 +162,38 @@ def test_disclosure_proof_verification():
 
     assert verify_disclosure_proof(Pk, disc_proof, disclosed_attributes, msg)
 
+#This test passes when disclosed attributes is empty (not when hidden empty)
+def test_disclosure_proof_equality():
+    list_len = random.randint(1, 20)
+    attributes = [G1.order().random() for _ in range(list_len)]
+    Sk, Pk = generate_key(attributes)
+    user_attributes, issuer_attributes = randomly_split_attributes(attributes)
+    # start request
+    user_state, issue_req = create_issue_request(Pk, user_attributes)
+    blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
+    anon_cred = obtain_credential(Pk, blind_sig, user_state)
+
+    hidden_attributes, disclosed_attributes = randomly_split_attributes(attributes)
+    
+    sorted_hidden_attributes = dict(sorted(hidden_attributes.items()))
+    sorted_disclosed_attributes = dict(sorted(disclosed_attributes.items()))
+
+    # Compute the right side of the proof 
+    r, t = G1.order().random(), G1.order().random()
+    rnd_sigma_1 = anon_cred.sigma.sigma1**r
+    rnd_sigma_2 = (anon_cred.sigma.sigma2 * anon_cred.sigma.sigma1**t) ** r
+    sigma1_ghat_t = rnd_sigma_1.pair(Pk.g_hat) ** t
+    sigma1_Yhat_a_list = [rnd_sigma_1.pair(Pk.Y_hat_list[i - 1])  ** sorted_hidden_attributes[i] for i in sorted_hidden_attributes.keys()]
+    right_side = sigma1_ghat_t * GT.prod(sigma1_Yhat_a_list)
+
+    # Compute the left side of the proof 
+    sigma2_ghat = rnd_sigma_2.pair(Pk.g_hat)
+    sigma1_Y_a_list = [rnd_sigma_1.pair(Pk.Y_hat_list[i - 1])  ** -sorted_disclosed_attributes[i] for i in sorted_disclosed_attributes.keys()]
+    sigma1_Xhat = rnd_sigma_1.pair(Pk.X_hat)
+    left_side = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
+
+    assert left_side == right_side
+
 
 ####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##

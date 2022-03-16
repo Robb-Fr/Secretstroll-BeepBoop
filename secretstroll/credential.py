@@ -318,8 +318,8 @@ def create_disclosure_proof(
     rnd_sigma_2 = (credential.sigma.sigma2 * credential.sigma.sigma1**t) ** r
     sign = Signature(rnd_sigma_1, rnd_sigma_2)
 
-    sigma1_ghat_t = rnd_sigma_1.pair(pk.g_hat) ** randoms[0]
-    sigma1_Yhat_a_list = [rnd_sigma_1.pair(pk.Y_hat_list[i - 1]) ** ai_prime for (i,ai_prime) in enumerate(randoms[1:])]
+    R = rnd_sigma_1.pair(pk.g_hat) ** randoms[0]
+
     if U > 0:
         ai_prime_list = [GT.order().random() for _ in range(U)]
         # Computes the list of Y_i^r_j for i in U (user attributes' indexes) and j in [1,...,|U|] (number of user attributes)
@@ -328,8 +328,9 @@ def create_disclosure_proof(
             for ai_index, i in enumerate(sorted_hidden_attributes.keys())
         ]
         randoms += ai_prime_list
+        R *= GT.prod(Y_hat_s_prod) 
 
-    R = sigma1_ghat_t * GT.prod(Y_hat_s_prod) 
+   
 
     challenge = Bn.from_hex(
         sha256(str(jsonpickle.encode((pk.pk, R))).encode()).hexdigest()
@@ -391,7 +392,9 @@ def verify_disclosure_proof(
 
     # Compute left side of proof (commit)
     sigma2_ghat = sign.sigma2.pair(pk.g_hat)
-    sigma1_Y_a_list = [sign.sigma1.pair(pk.Y_hat_list[i - 1])  ** -sorted_disclosed_attributes[i] for i in sorted_disclosed_attributes.keys()]
+    sigma1_Y_a_list = []
+    if len(pk.Y_hat_list) > 0:
+        sigma1_Y_a_list = [sign.sigma1.pair(pk.Y_hat_list[i - 1])  ** -sorted_disclosed_attributes[i] for i in sorted_disclosed_attributes.keys()]
     sigma1_Xhat = sign.sigma1.pair(pk.X_hat)
     commit = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
 
@@ -400,8 +403,10 @@ def verify_disclosure_proof(
     ai_prime = disclosure_proof.pi.response_index
     com_c = commit ** disclosure_proof.pi.challenge
     ghat_tprime = sign.sigma1.pair(pk.g_hat) ** t_prime
-    sigma1_Yhat_a_list = [sign.sigma1.pair(pk.Y_hat_list[index - 1]) ** resp for (resp, index) in ai_prime]
-    R_prime = com_c * ghat_tprime * GT.prod(sigma1_Yhat_a_list) 
+    R_prime = com_c * ghat_tprime
+    if len(ai_prime) > 0:
+        sigma1_Yhat_a_list = [sign.sigma1.pair(pk.Y_hat_list[index - 1]) ** resp for (resp, index) in ai_prime]
+        R_prime *= GT.prod(sigma1_Yhat_a_list) 
 
     # Compute challenge of R' 
     challenge_prime = Bn.from_hex(

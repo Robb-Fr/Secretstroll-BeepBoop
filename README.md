@@ -14,5 +14,5 @@ python3 -m pytest secretstroll --count=100 -n 2 --benchmark-disable
 Run benchmark:
 ```bash
 # runs with the credential.py benchmark, skips tests and produces histogram
-python3 -m pytest secretstroll/benchmark_credential.py --benchmark-enable --benchmark-only --benchmark-histogram
+python3 -m pytest secretstroll --benchmark-enable --benchmark-only --benchmark-histogram
 ```

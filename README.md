@@ -3,9 +3,16 @@ Secretstroll project of CS-523 Advanced Topics on Privacy Enhacing Technologies 
 
 See https://github.com/Robb-Fr/Secretstroll-BeepBoop-Report for the report repository.
 
+Make sure all requirements are installed: `pip install -r requirements.txt`
 Run tests:
 
-(make sure that `pytest-repeat` and `pytest-xdist` are installed, `pip install pytest-repeat` and `pip install pytest-xdist`)
 ```bash
+# runs with 2 workers, 100 iterations per test
 python3 -m pytest secretstroll -n 2 --count=100
+```
+
+Run benchmark:
+```bash
+# runs with the credential.py benchmark, skips tests and produces histogram
+python3 -m pytest secretstroll/benchmark_credential.py --benchmark-only  --benchmark-histogram
 ```

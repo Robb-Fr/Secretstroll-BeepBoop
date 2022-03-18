@@ -7,6 +7,7 @@ pylint
 pytest
 requests
 
+black
 pytest-repeat
 pytest-xdist
 pytest-benchmark

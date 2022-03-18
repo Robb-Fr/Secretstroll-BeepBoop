@@ -12,9 +12,10 @@ import os
 ######################
 
 
-def test_generate_key_success():
+def test_generate_key(benchmark):
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
+    benchmark(generate_key, attributes)
     Sk, Pk = generate_key(attributes)
     assert Sk.L == list_len
     assert len(Sk.sk) == list_len + 2
@@ -28,11 +29,12 @@ def test_generate_key_fail():
         generate_key(attributes)
 
 
-def test_sign_success():
+def test_sign(benchmark):
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     msgs = attributes_to_bytes(dict(enumerate(attributes)))
+    benchmark(sign, Sk, msgs)
     sigma = sign(Sk, msgs)
 
     assert verify(Pk, sigma, msgs)
@@ -66,7 +68,42 @@ def test_sign_fail():
 ## ISSUANCE PROTOCOL ##
 
 
-def test_obtaining_credentials_succes():
+def test_issue_request(benchmark):
+    # setup parameters
+    list_len = random.randint(1, 10)
+    attributes = [G1.order().random() for _ in range(list_len)]
+    Sk, Pk = generate_key(attributes)
+    user_attributes, issuer_attributes = randomly_split_attributes(attributes)
+    # start request
+    benchmark(create_issue_request, Pk, user_attributes)
+    user_state, issue_req = create_issue_request(Pk, user_attributes)
+    # if no error thrown, success
+
+
+def test_sign_issue_request(benchmark):
+    # setup parameters
+    list_len = random.randint(1, 10)
+    attributes = [G1.order().random() for _ in range(list_len)]
+    Sk, Pk = generate_key(attributes)
+    user_attributes, issuer_attributes = randomly_split_attributes(attributes)
+    # start request
+    user_state, issue_req = create_issue_request(Pk, user_attributes)
+    benchmark(sign_issue_request, Sk, Pk, issue_req, issuer_attributes)
+    blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
+    # if no error thrown, success
+
+
+def test_verify_issue_request(benchmark):
+    list_len = random.randint(1, 10)
+    attributes = [G1.order().random() for _ in range(list_len)]
+    Sk, Pk = generate_key(attributes)
+    user_attributes, issuer_attributes = randomly_split_attributes(attributes)
+    user_state, issue_req = create_issue_request(Pk, user_attributes)
+    benchmark(verify_issue_request_knowledge_proof,issue_req, Pk)
+    assert verify_issue_request_knowledge_proof(issue_req, Pk)
+
+
+def test_obtain_credential():
     # setup parameters
     list_len = random.randint(1, 10)
     attributes = [G1.order().random() for _ in range(list_len)]
@@ -77,15 +114,6 @@ def test_obtaining_credentials_succes():
     blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
     anon_cred = obtain_credential(Pk, blind_sig, user_state)
     # if no error thrown, success
-
-
-def test_issue_request_kp_success():
-    list_len = random.randint(1, 10)
-    attributes = [G1.order().random() for _ in range(list_len)]
-    Sk, Pk = generate_key(attributes)
-    user_attributes, issuer_attributes = randomly_split_attributes(attributes)
-    user_state, issue_req = create_issue_request(Pk, user_attributes)
-    assert verify_issue_request_knowledge_proof(issue_req, Pk)
 
 
 def test_obtaining_credential_fail():

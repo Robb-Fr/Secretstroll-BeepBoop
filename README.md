@@ -8,11 +8,11 @@ Run tests:
 
 ```bash
 # runs with 2 workers, 100 iterations per test
-python3 -m pytest secretstroll -n 2 --count=100
+python3 -m pytest secretstroll --count=100 -n 2 --benchmark-disable
 ```
 
 Run benchmark:
 ```bash
 # runs with the credential.py benchmark, skips tests and produces histogram
-python3 -m pytest secretstroll/benchmark_credential.py --benchmark-only  --benchmark-histogram
+python3 -m pytest secretstroll/benchmark_credential.py --benchmark-enable --benchmark-only --benchmark-histogram
 ```

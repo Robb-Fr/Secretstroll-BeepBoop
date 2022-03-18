@@ -333,7 +333,7 @@ def create_disclosure_proof(
    
 
     challenge = Bn.from_hex(
-        sha256(str(jsonpickle.encode((pk.pk, R))).encode()).hexdigest()
+        sha256(str(jsonpickle.encode((pk.pk, R, message))).encode()).hexdigest()
     )
 
     responses = [randoms[0] - challenge*t] # st' = t' - Ct
@@ -410,7 +410,7 @@ def verify_disclosure_proof(
 
     # Compute challenge of R' 
     challenge_prime = Bn.from_hex(
-        sha256(str(jsonpickle.encode((pk.pk, R_prime))).encode()).hexdigest()
+        sha256(str(jsonpickle.encode((pk.pk, R_prime, message))).encode()).hexdigest()
     )
 
     # Check challenge(R) = challenge(R')

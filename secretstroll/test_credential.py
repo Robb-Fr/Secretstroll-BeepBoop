@@ -154,7 +154,7 @@ def test_disclosure_proof_verification():
     anon_cred = obtain_credential(Pk, blind_sig, user_state)
 
     hidden_attributes, disclosed_attributes = randomly_split_attributes(attributes)
-    msg = bytes(0)
+    msg = random.randbytes(10)
 
     disc_proof = create_disclosure_proof(Pk, anon_cred, hidden_attributes, msg)
 

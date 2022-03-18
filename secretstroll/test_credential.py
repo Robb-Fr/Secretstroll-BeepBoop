@@ -1,14 +1,11 @@
-from multiprocessing.sharedctypes import Value
-from operator import le
 import random
 from typing import List
-import py
 import pytest
-import sys
 
 from credential import *
 from petrelic.bn import Bn
 from petrelic.multiplicative.pairing import G1, G2, GT
+import os
 
 ######################
 ## SIGNATURE SCHEME ##
@@ -44,12 +41,17 @@ def test_sign_success():
 def test_sign_fail():
     list_len = random.randint(1, 30)
     attributes = [G1.order().random() for _ in range(list_len)]
+    fake_attributes = [str(G1.order().random()) for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     msgs = attributes_to_bytes(dict(enumerate(attributes)))
+    fake_msgs = attributes_to_bytes(dict(enumerate(fake_attributes)))
     sigma = sign(Sk, msgs)
 
+    with pytest.raises(TypeError):
+        sign(Sk, fake_msgs)
+
     with pytest.raises(ValueError):
-        assert verify(Pk, sigma, [])
+        verify(Pk, sigma, [])
 
     assert not verify(Pk, Signature(G1.unity(), G1.unity()), msgs)
 
@@ -154,16 +156,15 @@ def test_disclosure_proof_verification():
     anon_cred = obtain_credential(Pk, blind_sig, user_state)
 
     hidden_attributes, disclosed_attributes = randomly_split_attributes(attributes)
-    msg = random.randbytes(10)
+    msg = os.urandom(10)
 
     disc_proof = create_disclosure_proof(Pk, anon_cred, hidden_attributes, msg)
 
-    #assert disclosed_attributes == disc_proof.disclosed_attributes
-
     assert verify_disclosure_proof(Pk, disc_proof, disclosed_attributes, msg)
 
-#This test passes when disclosed attributes is empty (not when hidden empty)
+
 def test_disclosure_proof_equality():
+    """Preliminary tests for the proof implementation"""
     list_len = random.randint(1, 20)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
@@ -174,21 +175,27 @@ def test_disclosure_proof_equality():
     anon_cred = obtain_credential(Pk, blind_sig, user_state)
 
     hidden_attributes, disclosed_attributes = randomly_split_attributes(attributes)
-    
+
     sorted_hidden_attributes = dict(sorted(hidden_attributes.items()))
     sorted_disclosed_attributes = dict(sorted(disclosed_attributes.items()))
 
-    # Compute the right side of the proof 
+    # Compute the right side of the proof
     r, t = G1.order().random(), G1.order().random()
     rnd_sigma_1 = anon_cred.sigma.sigma1**r
     rnd_sigma_2 = (anon_cred.sigma.sigma2 * anon_cred.sigma.sigma1**t) ** r
     sigma1_ghat_t = rnd_sigma_1.pair(Pk.g_hat) ** t
-    sigma1_Yhat_a_list = [rnd_sigma_1.pair(Pk.Y_hat_list[i - 1])  ** sorted_hidden_attributes[i] for i in sorted_hidden_attributes.keys()]
+    sigma1_Yhat_a_list = [
+        rnd_sigma_1.pair(Pk.Y_hat_list[i - 1]) ** sorted_hidden_attributes[i]
+        for i in sorted_hidden_attributes.keys()
+    ]
     right_side = sigma1_ghat_t * GT.prod(sigma1_Yhat_a_list)
 
-    # Compute the left side of the proof 
+    # Compute the left side of the proof
     sigma2_ghat = rnd_sigma_2.pair(Pk.g_hat)
-    sigma1_Y_a_list = [rnd_sigma_1.pair(Pk.Y_hat_list[i - 1])  ** -sorted_disclosed_attributes[i] for i in sorted_disclosed_attributes.keys()]
+    sigma1_Y_a_list = [
+        rnd_sigma_1.pair(Pk.Y_hat_list[i - 1]) ** -sorted_disclosed_attributes[i]
+        for i in sorted_disclosed_attributes.keys()
+    ]
     sigma1_Xhat = rnd_sigma_1.pair(Pk.X_hat)
     left_side = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
 

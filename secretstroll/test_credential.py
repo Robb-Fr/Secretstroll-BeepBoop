@@ -10,10 +10,11 @@ import os
 ######################
 ## SIGNATURE SCHEME ##
 ######################
-
+MIN_NB_ATTRIBUTES = 1
+MAX_NB_ATTRIBUTES = 10
 
 def test_generate_key(benchmark):
-    list_len = random.randint(1, 30)
+    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     benchmark(generate_key, attributes)
     Sk, Pk = generate_key(attributes)
@@ -30,7 +31,7 @@ def test_generate_key_fail():
 
 
 def test_sign(benchmark):
-    list_len = random.randint(1, 30)
+    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     msgs = attributes_to_bytes(dict(enumerate(attributes)))
@@ -41,7 +42,7 @@ def test_sign(benchmark):
 
 
 def test_sign_fail():
-    list_len = random.randint(1, 30)
+    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     fake_attributes = [str(G1.order().random()) for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
@@ -70,7 +71,7 @@ def test_sign_fail():
 
 def test_issue_request(benchmark):
     # setup parameters
-    list_len = random.randint(1, 10)
+    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
@@ -82,7 +83,7 @@ def test_issue_request(benchmark):
 
 def test_sign_issue_request(benchmark):
     # setup parameters
-    list_len = random.randint(1, 10)
+    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
@@ -94,7 +95,7 @@ def test_sign_issue_request(benchmark):
 
 
 def test_verify_issue_request(benchmark):
-    list_len = random.randint(1, 10)
+    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
@@ -105,7 +106,7 @@ def test_verify_issue_request(benchmark):
 
 def test_obtain_credential():
     # setup parameters
-    list_len = random.randint(1, 10)
+    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
@@ -118,7 +119,7 @@ def test_obtain_credential():
 
 def test_obtaining_credential_fail():
     # setup parameters
-    list_len = random.randint(1, 10)
+    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
@@ -174,7 +175,7 @@ def test_obtaining_credential_fail():
 
 
 def test_disclosure_proof_verification():
-    list_len = random.randint(1, 20)
+    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
@@ -193,7 +194,7 @@ def test_disclosure_proof_verification():
 
 def test_disclosure_proof_equality():
     """Preliminary tests for the proof implementation"""
-    list_len = random.randint(1, 20)
+    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)

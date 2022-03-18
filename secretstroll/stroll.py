@@ -3,9 +3,13 @@ Classes that you need to complete.
 """
 
 from typing import Any, Dict, List, Union, Tuple
+from petrelic.bn import Bn
+from credential import *
+
 
 # Optional import
 from serialization import jsonpickle
+
 
 # Type aliases
 State = Any
@@ -44,10 +48,12 @@ class Server:
             You are free to design this as you see fit, but the return types
             should be encoded as bytes.
         """
-        ###############################################
-        # TODO: Complete this function.
-        ###############################################
-        raise NotImplementedError
+        attributes = [Bn.from_decimal(sub) for sub in subscriptions]
+        sk, pk = generate_key(attributes)
+        server_sk = jsonpickle.encode(sk)
+        server_pk = jsonpickle.encode(pk)
+
+        return server_sk, server_pk
 
 
     def process_registration(

@@ -12,7 +12,7 @@ from serialization import jsonpickle
 
 
 # Type aliases
-State = Any
+State = UserState
 
 
 class Server:
@@ -26,7 +26,6 @@ class Server:
         ###############################################
         # TODO: Complete this function.
         ###############################################
-        raise NotImplementedError
 
 
     @staticmethod
@@ -50,8 +49,8 @@ class Server:
         """
         attributes = str_to_attribute_map(subscriptions)
         sk, pk = generate_key(attributes)
-        server_sk = jsonpickle.encode(sk)
-        server_pk = jsonpickle.encode(pk)
+        server_sk = jsonpickle.encode(sk).encode()
+        server_pk = jsonpickle.encode(pk).encode()
 
         return server_sk, server_pk
 
@@ -88,7 +87,7 @@ class Server:
 
         blind_sign = sign_issue_request(sk, pk, req, attributes)
 
-        return jsonpickle.encode(blind_sign)
+        return jsonpickle.encode(blind_sign).encode()
 
 
     def check_request_signature(
@@ -129,7 +128,7 @@ class Client:
         ###############################################
         # TODO: Complete this function.
         ###############################################
-        raise NotImplementedError()
+        
 
 
     def prepare_registration(
@@ -158,13 +157,13 @@ class Client:
         subscriptions.insert(0, username)
         attributes = str_to_attribute_map(subscriptions)
 
-        issue_request = create_issue_request(server_pk_deserialized, attributes)
+        user_state, issue_request = create_issue_request(server_pk_deserialized, attributes)
 
-        state = State(None) # TODO Implement State
+        #state = State(None)
 
         issue_request_as_bytes = jsonpickle.encode(issue_request)
 
-        return issue_request_as_bytes, state 
+        return issue_request_as_bytes, user_state 
 
 
     def process_registration_response(
@@ -192,7 +191,7 @@ class Client:
 
         cred = obtain_credential(server_pk_deserialized, blind_sign, private_state)
 
-        return jsonpickle.encode(cred)
+        return jsonpickle.encode(cred).encode()
 
 
     def sign_request(
@@ -223,5 +222,5 @@ class Client:
 
         disclosure_proof = create_disclosure_proof(server_pk_deserialized, cred, hidden_attributes, message)
 
-        return jsonpickle.encode(disclosure_proof)
+        return jsonpickle.encode(disclosure_proof).encode()
 

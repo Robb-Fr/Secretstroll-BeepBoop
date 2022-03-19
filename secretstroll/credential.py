@@ -364,7 +364,7 @@ def create_disclosure_proof(
         R *= GT.prod(Y_hat_s_prod)
 
     challenge = Bn.from_hex(
-        sha256(str(jsonpickle.encode((pk.pk, R, message))).encode()).hexdigest()
+        sha256(jsonpickle.encode((pk.pk, R, message)).encode()).hexdigest()
     )
 
     responses = [randoms[0] - challenge * t]  # st' = t' - Ct
@@ -440,7 +440,7 @@ def verify_disclosure_proof(
 
     # Compute challenge of R'
     challenge_prime = Bn.from_hex(
-        sha256(str(jsonpickle.encode((pk.pk, R_prime, message))).encode()).hexdigest()
+        sha256(jsonpickle.encode((pk.pk, R_prime, message)).encode()).hexdigest()
     )
 
     # Check challenge(R) = challenge(R')
@@ -494,7 +494,7 @@ def create_issue_request_knowledge_proof(
         randoms += r_list
         commit *= G1.prod(Y_s_prod)
     challenge = Bn.from_hex(
-        sha256(str(jsonpickle.encode((pk.pk, commit))).encode()).hexdigest()
+        sha256(jsonpickle.encode((pk.pk, commit)).encode()).hexdigest()
     )
     responses = [randoms[0] - challenge * t]
     response_index = []
@@ -519,7 +519,7 @@ def verify_issue_request_knowledge_proof(
             [pk.Y_list[index - 1] ** resp for resp, index in pi.response_index]
         )
     challenge_prime = Bn.from_hex(
-        sha256(str(jsonpickle.encode((pk.pk, commit))).encode()).hexdigest()
+        sha256(jsonpickle.encode((pk.pk, commit)).encode()).hexdigest()
     )
     return pi.challenge == challenge_prime
 

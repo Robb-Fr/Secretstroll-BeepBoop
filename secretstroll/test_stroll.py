@@ -23,7 +23,19 @@ def test_jsonpickle():
     attributesmap_serialized = jsonpickle.encode(attributesmap)
     attributesmap_deserialized = jsonpickle.decode(attributesmap_serialized)
 
-    assert_equivalent (attributesmap_deserialized, attributesmap)
+    assert attributesmap_deserialized == attributesmap
+
+    sk, pk = generate_key(attributes)
+    sk_serialized = jsonpickle.encode(sk)
+    sk_deserialized = jsonpickle.decode(sk_serialized)
+    pk_serialized = jsonpickle.encode(pk)
+    pk_deserialized = jsonpickle.decode(pk_serialized)
+
+    assert sk == sk_deserialized
+    assert pk == pk_deserialized
+
+
+    
 
 
 ####################################

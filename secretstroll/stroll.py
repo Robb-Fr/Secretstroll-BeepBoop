@@ -48,7 +48,7 @@ class Server:
             You are free to design this as you see fit, but the return types
             should be encoded as bytes.
         """
-        attributes = [Bn.from_decimal(sub) for sub in subscriptions]
+        attributes = str_to_attribute_map(subscriptions)
         sk, pk = generate_key(attributes)
         server_sk = jsonpickle.encode(sk)
         server_pk = jsonpickle.encode(pk)
@@ -80,7 +80,15 @@ class Server:
         ###############################################
         # TODO: Complete this function.
         ###############################################
-        raise NotImplementedError
+        sk = jsonpickle.decode(server_sk)
+        pk = jsonpickle.decode(server_pk)
+        req = jsonpickle.decode(issuance_request)
+        subscriptions.insert(0, username)
+        attributes = str_to_attribute_map(subscriptions)
+
+        blind_sign = sign_issue_request(sk, pk, req, attributes)
+
+        return jsonpickle.encode(blind_sign)
 
 
     def check_request_signature(
@@ -104,7 +112,11 @@ class Server:
         ###############################################
         # TODO: Complete this function.
         ###############################################
-        raise NotImplementedError
+        pk = jsonpickle.decode(server_pk)
+        disclosed_attributes = str_to_attribute_map(revealed_attributes)
+        disc_proof = jsonpickle.decode(signature)
+
+        return verify_disclosure_proof(pk, disc_proof, disclosed_attributes, message)
 
 
 class Client:
@@ -140,10 +152,19 @@ class Client:
                 from prepare_registration to proceed_registration_response.
                 You need to design the state yourself.
         """
-        ###############################################
-        # TODO: Complete this function.
-        ###############################################
-        raise NotImplementedError
+
+        server_pk_deserialized = jsonpickle.decode(server_pk)
+  
+        subscriptions.insert(0, username)
+        attributes = str_to_attribute_map(subscriptions)
+
+        issue_request = create_issue_request(server_pk_deserialized, attributes)
+
+        state = State(None) # TODO Implement State
+
+        issue_request_as_bytes = jsonpickle.encode(issue_request)
+
+        return issue_request_as_bytes, state 
 
 
     def process_registration_response(
@@ -164,9 +185,14 @@ class Client:
             credentials: create an attribute-based credential for the user
         """
         ###############################################
-        # TODO: Complete this function.
+        # TODO: maybe need to do something with state
         ###############################################
-        raise NotImplementedError
+        server_pk_deserialized = jsonpickle.decode(server_pk)
+        blind_sign = jsonpickle.decode(server_response)
+
+        cred = obtain_credential(server_pk_deserialized, blind_sign, private_state)
+
+        return jsonpickle.encode(cred)
 
 
     def sign_request(
@@ -190,4 +216,12 @@ class Client:
         ###############################################
         # TODO: Complete this function.
         ###############################################
-        raise NotImplementedError
+
+        server_pk_deserialized = jsonpickle.decode(server_pk)
+        cred = jsonpickle.decode(credentials)
+        hidden_attributes = str_to_attribute_map(types)
+
+        disclosure_proof = create_disclosure_proof(server_pk_deserialized, cred, hidden_attributes, message)
+
+        return jsonpickle.encode(disclosure_proof)
+

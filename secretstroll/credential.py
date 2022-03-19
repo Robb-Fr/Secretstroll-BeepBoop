@@ -470,6 +470,11 @@ def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
     sorted_attributes = dict(sorted(attributes.items()))
     return list(map(lambda bn: jsonpickle.encode(bn), sorted_attributes.values()))
 
+def str_to_attribute_map(subscriptions: List[str]) -> AttributeMap:
+    attributes = { i : Bn.from_decimal(subscriptions[i]) for i in range(0, len(subscriptions) ) }
+    return attributes
+
+
 
 def create_issue_request_knowledge_proof(
     pk: PublicKey, t: Bn, user_attributes: AttributeMap
@@ -517,3 +522,4 @@ def verify_issue_request_knowledge_proof(
         sha256(str(jsonpickle.encode((pk.pk, commit))).encode()).hexdigest()
     )
     return pi.challenge == challenge_prime
+

@@ -161,7 +161,7 @@ class Client:
 
         #state = State(None)
 
-        issue_request_as_bytes = jsonpickle.encode(issue_request)
+        issue_request_as_bytes = jsonpickle.encode(issue_request).encode()
 
         return issue_request_as_bytes, (user_state, username) 
 

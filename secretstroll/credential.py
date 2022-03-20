@@ -148,7 +148,7 @@ def generate_key(attributes: List[Attribute]) -> Tuple[SecretKey, PublicKey]:
     """Generate signer key pair"""
     l = len(attributes)
     if l < 1:
-        raise ValueError("There must be at least one attribute")
+        raise ValueError("There must be at least one attribute. Received: " + str(attributes))
 
     y_list = [G1.order().random() for _ in range(l)]
     x = G1.order().random()
@@ -242,7 +242,7 @@ def create_issue_request(
     """
     if not check_attribute_map(user_attributes, pk.L):
         raise ValueError(
-            "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L]"
+            "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L] not " + str(user_attributes.keys()) + " (L: " + str(pk.L) + ")"
         )
     t = G1.order().random()
     user_state = (t, user_attributes)
@@ -266,7 +266,7 @@ def sign_issue_request(
     """
     if not check_attribute_map(issuer_attributes, pk.L):
         raise ValueError(
-            "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L]"
+            "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L] not " + str(issuer_attributes.keys()) + " (L: " + str(pk.L) + ")"
         )
     if not verify_issue_request_knowledge_proof(request, pk):
         raise ValueError(
@@ -471,7 +471,7 @@ def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
     return list(map(lambda bn: jsonpickle.encode(bn), sorted_attributes.values()))
 
 def str_to_attribute_map(subscriptions: List[str]) -> AttributeMap:
-    attributes = { i : Bn.from_decimal(subscriptions[i]) for i in range(0, len(subscriptions) ) }
+    attributes = { i : Bn.from_binary(subscriptions[i].encode()) for i in range(1, len(subscriptions) ) }
     return attributes
 
 

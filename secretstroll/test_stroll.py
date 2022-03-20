@@ -63,6 +63,10 @@ def test_jsonpickle():
     assert signature.sigma1 == sign_deserialized.sigma1
     assert signature.sigma2 == sign_deserialized.sigma2 
 
+# def test_str_to_attributemap():
+#     subscriptions = ["beach", "cinema", "bar", "museum", "casino"]
+#     attributes = dict{1: Bn.from_decimal}
+
 
 def test_sign():
     # initialise server, client
@@ -72,15 +76,20 @@ def test_sign():
     # setup
     list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     letters = string.digits
-    subscriptions = [''.join(random.choice(letters) for i in range(length)) for length in range(1,list_len)]
+    sub_index_upper_bound = max(2, list_len-1)
+    subscriptions = [''.join(random.choice(letters) for i in range(length)) for length in range(1,sub_index_upper_bound)]
     username = ''.join(random.choice(letters) for i in range(random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)))
-    msgs = attributes_to_bytes(dict(enumerate(subscriptions)))
-    rand_index = random.randint(0,list_len-1)
-    msg = msgs[rand_index]
-    user_subscriptions, _ = randomly_split_subscriptions(subscriptions)
-    hidden_sub, disclosed_sub = randomly_split_subscriptions(user_subscriptions)
+    #msgs = attributes_to_bytes(dict(enumerate(subscriptions)))
+    #index_upper_bound = min(0, len(msgs)-1)
+    #rand_index = random.randint(0,index_upper_bound)
+    #msg = msgs[rand_index]
+    msg = os.urandom(10)
+
+    #user_subscriptions, _ = randomly_split_subscriptions(subscriptions)
+    hidden_sub, disclosed_sub = randomly_split_subscriptions(subscriptions)
 
 
+    assert len(subscriptions)>0
 
 
     # execute exchanges 

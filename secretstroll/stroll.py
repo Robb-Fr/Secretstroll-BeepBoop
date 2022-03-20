@@ -12,7 +12,7 @@ from serialization import jsonpickle
 
 
 # Type aliases
-State = UserState
+State = Tuple[UserState, str]
 
 
 class Server:
@@ -154,7 +154,7 @@ class Client:
 
         server_pk_deserialized = jsonpickle.decode(server_pk)
   
-        subscriptions.insert(0, username)
+        #subscriptions.insert(0, username)
         attributes = str_to_attribute_map(subscriptions)
 
         user_state, issue_request = create_issue_request(server_pk_deserialized, attributes)
@@ -163,7 +163,7 @@ class Client:
 
         issue_request_as_bytes = jsonpickle.encode(issue_request)
 
-        return issue_request_as_bytes, user_state 
+        return issue_request_as_bytes, (user_state, username) 
 
 
     def process_registration_response(
@@ -189,7 +189,7 @@ class Client:
         server_pk_deserialized = jsonpickle.decode(server_pk)
         blind_sign = jsonpickle.decode(server_response)
 
-        cred = obtain_credential(server_pk_deserialized, blind_sign, private_state)
+        cred = obtain_credential(server_pk_deserialized, blind_sign, private_state[0])
 
         return jsonpickle.encode(cred).encode()
 

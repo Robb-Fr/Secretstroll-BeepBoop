@@ -1,6 +1,5 @@
 import random
 from typing import List
-from black import assert_equivalent
 import pytest
 import string
 
@@ -101,10 +100,8 @@ def test_sign():
 
     assert server.check_request_signature(pk, msg, disclosed_sub, sign)
 
-
-
-
-
+def test_sucess_run():
+    assert 0 == os.system("python3 server.py setup -S restaurant -S bar -S sushi")
 
 ####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##

@@ -2,9 +2,11 @@ import random
 from typing import List
 import pytest
 import string
+from threading import Thread
 
 from credential import *
 from stroll import * 
+import client, server
 from petrelic.bn import Bn
 from petrelic.multiplicative.pairing import G1, G2, GT
 import os
@@ -66,7 +68,7 @@ def test_jsonpickle():
 #     subscriptions = ["beach", "cinema", "bar", "museum", "casino"]
 #     attributes = dict{1: Bn.from_decimal}
 
-
+"""
 def test_sign():
     # initialise server, client
     server = Server()
@@ -99,9 +101,13 @@ def test_sign():
     sign = client.sign_request(pk, cred, msg, hidden_sub)
 
     assert server.check_request_signature(pk, msg, disclosed_sub, sign)
+    """
 
-def test_sucess_run():
-    assert 0 == os.system("python3 server.py setup -S restaurant -S bar -S sushi")
+def test_success_run():
+    server.main("setup -S restaurant -S bar -S sushi".split())
+    client.main(["get-pk"])
+    client.main("register -u tom -S restaurant -S bar".split())
+    client.main("loc 46.52345 6.57890 -T restaurant -T bar".split())
 
 ####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##

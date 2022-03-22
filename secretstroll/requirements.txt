@@ -12,3 +12,4 @@ pytest-repeat
 pytest-xdist
 pytest-benchmark
 pytest-benchmark[histogram]
+asyncio

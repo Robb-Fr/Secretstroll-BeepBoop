@@ -41,16 +41,18 @@ AttributeMap = dict[int, Bn]
 # AnonymousCredential = Any
 # DisclosureProof = Any
 """Contains secret values t (random secret to produce commitment value) and the user_attributes that will be blindly signed. This will be used by the user to compute their full credential"""
-UserState = Tuple[Bn, AttributeMap]
+tAndUserAttributes = Tuple[Bn, AttributeMap]
+
+ATTRIBUTE_MAP_ERROR = "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L] and attribute values should be positive numbers"
 
 
 class SecretKey:
     """Stores the private key values"""
 
     def __init__(self, x: Bn, g: G1Element, y_list: List[Bn]) -> None:
-        self.x = x
+        self.x = x.mod(G1.order())
         self.X = g**x
-        self.y_list = y_list
+        self.y_list = list(map(lambda x: x.mod(G1.order()), y_list))
         self.sk = [self.x, self.X] + self.y_list
         self.L = len(self.y_list)
 
@@ -59,7 +61,12 @@ class PublicKey:
     """Stores the public key values"""
 
     def __init__(
-        self, g: G1Element, y_list: List[Bn], g_hat: G2Element, X_hat: G2Element
+        self,
+        g: G1Element,
+        y_list: List[Bn],
+        g_hat: G2Element,
+        X_hat: G2Element,
+        all_attributes: List[Attribute],
     ) -> None:
         self.g = g
         self.Y_list = [g**y for y in y_list]
@@ -68,6 +75,7 @@ class PublicKey:
         self.Y_hat_list = [g_hat**y for y in y_list]
         self.pk = [self.g] + self.Y_list + [self.g_hat, self.X_hat] + self.Y_hat_list
         self.L = len(self.Y_list)
+        self.all_attributes = all_attributes
 
 
 class Signature:
@@ -94,9 +102,11 @@ class PedersenKnowledgeProof:
     def __init__(
         self, challenge: Bn, response_0: Bn, response_attr_index: List[Tuple[Bn, int]]
     ) -> None:
-        self.challenge = challenge
-        self.response_0 = response_0
-        self.response_index = response_attr_index
+        self.challenge = challenge.mod(G1.order())
+        self.response_0 = response_0.mod(G1.order())
+        self.response_index = list(
+            map(lambda x: (x[0].mod(G1.order()), x[1]), response_attr_index)
+        )
 
 
 class IssueRequest:
@@ -148,7 +158,7 @@ def generate_key(attributes: List[Attribute]) -> Tuple[SecretKey, PublicKey]:
     """Generate signer key pair"""
     l = len(attributes)
     if l < 1:
-        raise ValueError("There must be at least one attribute. Received: " + str(attributes))
+        raise ValueError("There must be at least one attribute")
 
     y_list = [G1.order().random() for _ in range(l)]
     x = G1.order().random()
@@ -157,7 +167,7 @@ def generate_key(attributes: List[Attribute]) -> Tuple[SecretKey, PublicKey]:
     g_hat = G2.generator()
 
     Sk = SecretKey(x, g, y_list)
-    Pk = PublicKey(g, y_list, g_hat, g_hat**x)
+    Pk = PublicKey(g, y_list, g_hat, g_hat**x, attributes)
 
     return (Sk, Pk)
 
@@ -170,11 +180,11 @@ def sign(sk: SecretKey, msgs: List[bytes]) -> Signature:
     """
     if sk.L != len(msgs):
         raise ValueError(
-            "Messages should have length L, the number of signed attributes"
+            "Messages should have length L"
         )
     for msg in msgs:
         if not isinstance(jsonpickle.decode(msg), Bn):
-            raise TypeError("Messages should be jsonpickle encoded objects")
+            raise TypeError("Messages should be jsonpickle encoded Bn objects")
 
     y_m_product = [sk.y_list[i] * jsonpickle.decode(msgs[i]) for i in range(sk.L)]
     exponent = sk.x + sum(y_m_product)
@@ -193,12 +203,12 @@ def verify(pk: PublicKey, signature: Signature, msgs: List[bytes]) -> bool:
     """
     if pk.L != len(msgs):
         raise ValueError(
-            "Messages should have length L, the number of signed attributes"
+            "Messages should have length L"
         )
 
     for msg in msgs:
         if not isinstance(jsonpickle.decode(msg), Bn):
-            raise TypeError("Messages should be jsonpickle encoded objects")
+            raise TypeError("Messages should be jsonpickle encoded Bn objects")
 
     if signature.sigma1 == G1.unity():  # unity is alias for neutral element
         # immediatly discards the case when sigma_1 is 1
@@ -226,7 +236,7 @@ def verify(pk: PublicKey, signature: Signature, msgs: List[bytes]) -> bool:
 
 def create_issue_request(
     pk: PublicKey, user_attributes: AttributeMap
-) -> Tuple[UserState, IssueRequest]:
+) -> Tuple[tAndUserAttributes, IssueRequest]:
     """Create an issuance request
 
     This corresponds to the "user commitment" step in the issuance protocol.
@@ -241,9 +251,7 @@ def create_issue_request(
             - the request object to be sent to the issuer. This is made to be sent as is to the issuer.
     """
     if not check_attribute_map(user_attributes, pk.L):
-        raise ValueError(
-            "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L] not " + str(user_attributes.keys()) + " (L: " + str(pk.L) + ")"
-        )
+        raise ValueError(ATTRIBUTE_MAP_ERROR)
     t = G1.order().random()
     user_state = (t, user_attributes)
     kp = create_issue_request_knowledge_proof(pk, t, user_attributes)
@@ -265,9 +273,7 @@ def sign_issue_request(
     This corresponds to the "issuer signing" step in the issuance protocol.
     """
     if not check_attribute_map(issuer_attributes, pk.L):
-        raise ValueError(
-            "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L] not " + str(issuer_attributes.keys()) + " (L: " + str(pk.L) + ")"
-        )
+        raise ValueError(ATTRIBUTE_MAP_ERROR)
     if not verify_issue_request_knowledge_proof(request, pk):
         raise ValueError(
             "Incorrect proof of knowledge associated with the issue request"
@@ -290,7 +296,7 @@ def sign_issue_request(
 
 
 def obtain_credential(
-    pk: PublicKey, response: BlindSignature, state: UserState
+    pk: PublicKey, response: BlindSignature, state: tAndUserAttributes
 ) -> AnonymousCredential:
     """Derive a credential from the issuer's response
 
@@ -305,9 +311,13 @@ def obtain_credential(
 
     """
     t, user_attributes = state
+    if not check_attribute_map(
+        response.issuer_attributes, pk.L
+    ) or not check_attribute_map(user_attributes, pk.L):
+        raise ValueError(ATTRIBUTE_MAP_ERROR)
     if pk.L != len(user_attributes) + len(response.issuer_attributes):
         raise ValueError(
-            "The sum of issuer and user signed attributes should be equal to L"
+            "The sum of issuer and user signed attributes should be less than L"
         )
     sigma1 = response.sigma1
     sigma2 = response.sigma2 / (sigma1**t)
@@ -340,6 +350,10 @@ def create_disclosure_proof(
 
     To create the proof we compute the right_side with random elements instead of the secrets. This is our R value. We then send a challenge based on R as well as elements constructed from the secrets and their random counterparts (responses), this is a done in a Pederson proof of knowledge way but adapted to the GT group
     """
+    if not check_attribute_map(credential.attributes, pk.L) or not check_attribute_map(
+        hidden_attributes, pk.L
+    ):
+        raise ValueError(ATTRIBUTE_MAP_ERROR)
     sorted_hidden_attributes = dict(sorted(hidden_attributes.items()))
     H = len(sorted_hidden_attributes)
 
@@ -365,7 +379,7 @@ def create_disclosure_proof(
 
     challenge = Bn.from_hex(
         sha256(jsonpickle.encode((pk.pk, R, message)).encode()).hexdigest()
-    )
+    ).mod(GT.order())
 
     responses = [randoms[0] - challenge * t]  # st' = t' - Ct
     response_index = []
@@ -384,7 +398,7 @@ def create_disclosure_proof(
 def verify_disclosure_proof(
     pk: PublicKey,
     disclosure_proof: DisclosureProof,
-    disclosed_attributed: AttributeMap,
+    disclosed_attributes: AttributeMap,
     message: bytes,
 ) -> bool:
     """
@@ -402,12 +416,13 @@ def verify_disclosure_proof(
     We verify this by comparing challenge(R) and challenge(R')
     This concludes our proof
     """
-
+    if not check_attribute_map(disclosed_attributes, pk.L):
+        raise ValueError(ATTRIBUTE_MAP_ERROR)
     # Need to verify that sigma1 is not the unity element in G1
     if disclosure_proof.sigma.sigma1 == G1.unity:
         return False
 
-    sorted_disclosed_attributes = dict(sorted(disclosed_attributed.items()))
+    sorted_disclosed_attributes = dict(sorted(disclosed_attributes.items()))
     D = len(sorted_disclosed_attributes)
 
     sign = disclosure_proof.sigma
@@ -441,7 +456,7 @@ def verify_disclosure_proof(
     # Compute challenge of R'
     challenge_prime = Bn.from_hex(
         sha256(jsonpickle.encode((pk.pk, R_prime, message)).encode()).hexdigest()
-    )
+    ).mod(GT.order())
 
     # Check challenge(R) = challenge(R')
     return disclosure_proof.pi.challenge == challenge_prime
@@ -457,9 +472,12 @@ def check_attribute_map(attributes: AttributeMap, L: int) -> bool:
     if len(attributes) > L:
         # checks if there are too many attributes
         return False
-    for index in attributes.keys():
+    for index, attr in attributes.items():
         # check if indexes reference valid attributes
         if index < 1 or index > L:
+            return False
+        # check if the attributes are positive numbers
+        if attr < 0:
             return False
     return True
 
@@ -469,11 +487,6 @@ def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
     # we take care of sorting attributes by keys in order to have it consistent with the list representation
     sorted_attributes = dict(sorted(attributes.items()))
     return list(map(lambda bn: jsonpickle.encode(bn), sorted_attributes.values()))
-
-def str_to_attribute_map(subscriptions: List[str]) -> AttributeMap:
-    attributes = { i : Bn.from_binary(subscriptions[i].encode()) for i in range(1, len(subscriptions) ) }
-    return attributes
-
 
 
 def create_issue_request_knowledge_proof(
@@ -495,7 +508,8 @@ def create_issue_request_knowledge_proof(
         commit *= G1.prod(Y_s_prod)
     challenge = Bn.from_hex(
         sha256(jsonpickle.encode((pk.pk, commit)).encode()).hexdigest()
-    )
+    ).mod(G1.order())
+
     responses = [randoms[0] - challenge * t]
     response_index = []
     if U > 0:
@@ -520,6 +534,5 @@ def verify_issue_request_knowledge_proof(
         )
     challenge_prime = Bn.from_hex(
         sha256(jsonpickle.encode((pk.pk, commit)).encode()).hexdigest()
-    )
+    ).mod(G1.order())
     return pi.challenge == challenge_prime
-

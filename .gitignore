@@ -142,6 +142,8 @@ secretstroll/tor/hidden_service/hostname
 secretstroll/tor/hidden_service/hs_ed25519_public_key
 secretstroll/tor/hidden_service/hs_ed25519_secret_key
 
-# keys files
+# keys and credentials files
 secretstroll/key.pub
 secretstroll/key.sec
+secretstroll/anon.cred
+secretstroll/key-client.pub

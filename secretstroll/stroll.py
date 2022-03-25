@@ -19,6 +19,8 @@ from serialization import jsonpickle
 """
 UserState = Tuple[tAndUserAttributes, str]
 
+NB_PRIVATE_ATTRIBUTES = 1
+
 
 class Server:
     """Server"""
@@ -27,9 +29,6 @@ class Server:
         """
         Server constructor.
         """
-        ###############################################
-        # TODO: Complete this function.
-        ###############################################
 
     @staticmethod
     def generate_ca(subscriptions: List[str]) -> Tuple[bytes, bytes]:
@@ -48,8 +47,11 @@ class Server:
             You are free to design this as you see fit, but the return types
             should be encoded as bytes.
         """
-        # adds an attribute the represent the fact that username is part of attributes
-        attributes = list(map(lambda x: str_to_attribute(x), ["None"] + subscriptions))
+        # creates the list of all attributes with the Bn corresponding to `None` as first one. The first attribute will represent user secret but is strictly associated to a user and therefore, makes no sense to be stored by server. The storing of None is useful for checking validity of subscription as None subscription should be valid.
+        # takes care of sorting subscriptions in alphabetical order for consistency
+        attributes = list(
+            map(lambda x: str_to_attribute(x), ["None"] + sorted(subscriptions))
+        )
         sk, pk = generate_key(attributes)
         server_sk = jsonpickle.encode(sk).encode()
         server_pk = jsonpickle.encode(pk).encode()
@@ -77,26 +79,20 @@ class Server:
             serialized response (the client should be able to build a
                 credential with this response).
         """
-        ###############################################
-        # TODO: Complete this function.
-        ###############################################
         sk = jsonpickle.decode(server_sk)
         pk = jsonpickle.decode(server_pk)
-
         issue_req = jsonpickle.decode(issuance_request)
-        issuer_attributes_map = subset_subscriptions_to_attribute_map(
-            pk.all_attributes, subscriptions
-        )
+        if (
+            not isinstance(sk, SecretKey)
+            or not isinstance(pk, PublicKey)
+            or not isinstance(issue_req, IssueRequest)
+        ):
+            raise TypeError("Bad deserialization of inputs")
 
-        all_attributes_map = all_subscriptions_to_attribute_map(pk.all_attributes)
+        if not check_subscriptions(pk, subscriptions):
+            raise ValueError("Cannot subscribe to unknown subscrption type")
 
-        for i, attr in issuer_attributes_map.items():
-            if (
-                not attr == str_to_attribute("None")
-                and not all_attributes_map.get(i) == attr
-            ):
-                raise ValueError("Cannot subscribe to unknown subscrption type")
-
+        issuer_attributes_map = create_issuer_attributes(pk, subscriptions)
         blind_sign = sign_issue_request(sk, pk, issue_req, issuer_attributes_map)
 
         return jsonpickle.encode(blind_sign, keys=True).encode()
@@ -123,14 +119,11 @@ class Server:
         # TODO: Complete this function.
         ###############################################
         pk = jsonpickle.decode(server_pk)
-        disclosed_attributes = subset_subscriptions_to_attribute_map(
-            pk.all_attributes, revealed_attributes
-        )
         disc_proof = jsonpickle.decode(signature, keys=True)
+        if not isinstance(pk, PublicKey) or not isinstance(disc_proof, DisclosureProof):
+            raise TypeError("Bad deserialization of inputs")
 
-        if not isinstance(disc_proof, DisclosureProof):
-            raise TypeError("Disclosure proof decoded object is incorrect")
-
+        disclosed_attributes = create_disclosed_attributes(pk, revealed_attributes)
         return verify_disclosure_proof(pk, disc_proof, disclosed_attributes, message)
 
 
@@ -140,10 +133,10 @@ class Client:
     def __init__(self):
         """
         Client constructor.
+
+        Initializes some client secret used to obtain a credential uniquely binded to the client
         """
-        ###############################################
-        # TODO: Complete this function.
-        ###############################################
+        self.client_secret = G1.order().random()
 
     def prepare_registration(
         self, server_pk: bytes, username: str, subscriptions: List[str]
@@ -162,12 +155,12 @@ class Client:
                 from prepare_registration to proceed_registration_response.
                 You need to design the state yourself.
         """
-        server_pk_deserialized = jsonpickle.decode(server_pk)
-        user_attributes = dict()
-        user_state, issue_request = create_issue_request(
-            server_pk_deserialized, user_attributes
-        )
+        pk = jsonpickle.decode(server_pk)
+        if not isinstance(pk, PublicKey):
+            raise TypeError("Bad deserialization of inputs")
 
+        user_attributes = create_user_attribtues(self.client_secret)
+        user_state, issue_request = create_issue_request(pk, user_attributes)
         issue_request_as_bytes = jsonpickle.encode(issue_request, keys=True).encode()
 
         return issue_request_as_bytes, (user_state, username)
@@ -186,16 +179,14 @@ class Client:
         Return:
             credentials: create an attribute-based credential for the user
         """
-        ###############################################
-        # TODO: maybe need to do something with state
-        ###############################################
         pk = jsonpickle.decode(server_pk)
         blind_sign = jsonpickle.decode(server_response, keys=True)
-        if not isinstance(blind_sign, BlindSignature):
-            raise TypeError("Inccorrect type of parsed blind signature")
+        if not isinstance(pk, PublicKey) or not isinstance(blind_sign, BlindSignature):
+            raise TypeError("Bad deserialization of inputs")
 
         t_user_attr, username = private_state
         cred = obtain_credential(pk, blind_sign, t_user_attr)
+
         return jsonpickle.encode(cred, keys=True).encode()
 
     def sign_request(
@@ -212,57 +203,96 @@ class Client:
         Returns:
             A message's signature (serialized)
         """
-        ###############################################
-        # TODO: Complete this function.
-        ###############################################
         pk = jsonpickle.decode(server_pk)
         cred = jsonpickle.decode(credentials, keys=True)
-        disclosed_attributes = subset_subscriptions_to_attribute_map(
-            pk.all_attributes, types
-        ).items()
+        if not isinstance(pk, PublicKey) or not isinstance(cred, AnonymousCredential):
+            raise TypeError("Bad deserialization of inputs")
+
+        disclosed_attributes = create_disclosed_attributes(pk, types).items()
+        # we take the hidden attributes as the attributes signed by the credential that are not part of the disclosed ones
         hidden_attributes = {
             i: attr
             for i, attr in cred.attributes.items()
             if (i, attr) not in disclosed_attributes
         }
-
         disclosure_proof = create_disclosure_proof(pk, cred, hidden_attributes, message)
 
         return jsonpickle.encode(disclosure_proof, keys=True).encode()
 
 
 ###############################################
-#           AUXILIARY TOOL METHODS
+##    METHODS FOR ATTRIBUTES/SUBSCRIPTION    ##
 ###############################################
 
 
-def subset_subscriptions_to_attribute_map(
-    all_attributes: List[Attribute], subscriptions: List[str]
-) -> AttributeMap:
-    """Returns the attribute map associated with the list of attributes given all the public attributes"""
-    all_attributes_map = all_subscriptions_to_attribute_map(all_attributes)
-    subscriptions_as_attributes = list(
-        map(lambda x: str_to_attribute(x), subscriptions)
+def check_subscriptions(pk: PublicKey, subscriptions: List[str]) -> bool:
+    """Checks all the subscriptions input are in the list of recognized subscriptions by the server"""
+    return all(
+        str_to_attribute(subscr) in pk.all_attributes for subscr in subscriptions
     )
-    attributes_map = {
+
+
+def create_user_attribtues(secret: Attribute) -> AttributeMap:
+    """Creates the user attributes for a client secret: an attribute map for the NB_PRIVATE_ATTRIBUTES first attribute indexes"""
+    return {1: secret}
+
+
+def create_disclosed_attributes(
+    pk: PublicKey, chosen_subscriptions: List[str]
+) -> AttributeMap:
+    all_subscriptions_map = all_subscriptions_attribute_map(pk)
+    chosen_subscriptions_attributes = subscriptions_to_attribute_list(
+        chosen_subscriptions
+    )
+    return {
+        i: subscr
+        for i, subscr in all_subscriptions_map.items()
+        if subscr in chosen_subscriptions_attributes
+    }
+
+
+def create_issuer_attributes(
+    pk: PublicKey, chosen_subscriptions: List[str]
+) -> AttributeMap:
+    """Creates a padded attribute map for the disclosure of attributes representing subscriptions.
+    Args:
+        - pk: the server public key
+        - chosen_subscriptions: the string representation of the subscriptions that should be included in the attribute map
+    Returns:
+        an attribute map {i->a_i} such that a_i is the string representation of the chosen subscription attribute or the attribute representation of None if the attribute was not chosen to be disclosed"""
+    all_subscriptions_map = all_subscriptions_attribute_map(pk)
+    chosen_subscriptions_attributes = subscriptions_to_attribute_list(
+        chosen_subscriptions
+    )
+    return {
         i: (
             subscr
-            if subscr in subscriptions_as_attributes
+            if subscr in chosen_subscriptions_attributes
             else str_to_attribute("None")
         )
-        for i, subscr in all_attributes_map.items()
+        for i, subscr in all_subscriptions_map.items()
     }
-    return attributes_map
 
 
-def all_subscriptions_to_attribute_map(
-    all_attributes: List[Attribute],
+def subscriptions_to_attribute_list(subscriptions: List[str]) -> List[Attribute]:
+    """Makes an attribute (Bn) list from a list of string represented subscriptions"""
+    return list(map(lambda x: str_to_attribute(x), subscriptions))
+
+
+def all_subscriptions_attribute_map(
+    pk: PublicKey,
 ) -> AttributeMap:
-    """Build the attribute map of all attributes the recognized subscription attributes from the list of attributes in the public key"""
-    attributes = {i + 1: subscr for i, subscr in enumerate(all_attributes)}
-    return attributes
+    """Builds the attribute map of all the attributes that are recognized by the server having public key pk"""
+    # we first shift x[0] by 1 as list index are in [0,L-1] while attributes index are in [1,L]
+    # we also take into account that only the L-NB_PRIVATE_ATTRIBUTES attributes represent the subscriptions
+    return dict(
+        map(
+            lambda x: (x[0] + 1, x[1]),
+            list(enumerate(pk.all_attributes))[NB_PRIVATE_ATTRIBUTES:],
+        )
+    )
 
 
 def str_to_attribute(subscription: str) -> Attribute:
-    """Transforms a string into a valid mod(order(G1)) attribute value as Bn"""
+    """Transforms a string into a valid positive mod(order(G1)) attribute value as Bn"""
     return Bn.from_binary(subscription.encode()).mod(G1.order())

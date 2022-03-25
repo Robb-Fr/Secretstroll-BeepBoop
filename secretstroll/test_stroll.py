@@ -105,11 +105,20 @@ def test_sign():
     """
 
 
-def test_success_run():
+def test_success_run_1():
     server.main("setup -S restaurant -S bar -S sushi".split())
     client.main(["get-pk"])
     client.main("register -u tom -S restaurant -S bar".split())
     client.main("loc 46.52345 6.57890 -T restaurant -T bar".split())
+    client.main("loc 46.52575 6.57870 -T bar".split())
+
+
+def test_success_run_2():
+    server.main("setup -S cybercafe -S hotel".split())
+    client.main(["get-pk"])
+    client.main("register -u beepboop -S cybercafe -S hotel".split())
+    client.main("grid 42 -T cybercafe -T hotel".split())
+    client.main("grid 45 -T cybercafe".split())
 
 
 ####################################
@@ -130,25 +139,3 @@ def randomly_split_subscriptions(
     issuer_subs = shuffled_subscriptions[split_index:]
 
     return user_subs, issuer_subs
-
-
-# def create_failing_map(attributes: AttributeMap, Pk: PublicKey) -> AttributeMap:
-#     """Creates an attributes map that should fail check_attribute_map"""
-#     list_len = Pk.L
-#     bad_key = random.choice(
-#         [random.randint(-1000, 0), random.randint(list_len + 1, 1000)]
-#     )  # a key that is not in [1,L]
-#     good_key = (
-#         random.choice(list(attributes.keys())) if len(attributes) > 0 else 0
-#     )  # a key in the interval (0 if empty -> value won't be used)
-#     too_long_attributes = attributes.copy()
-#     for i in range(list_len + random.randint(1, 10) - len(attributes)):
-#         # we make the dictionnary too big
-#         too_long_attributes[bad_key + i] = G1.order().random()
-#     bad_key_attributes = attributes.copy()
-#     if len(attributes) > 0:
-#         # we replace a good key by a bad key
-#         bad_key_attributes.pop(good_key)
-#     # if was empty, should anyway fail as above
-#     bad_key_attributes[bad_key] = G1.order().random()
-#     return random.choice([too_long_attributes, bad_key_attributes])

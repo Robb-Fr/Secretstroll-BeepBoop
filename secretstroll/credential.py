@@ -63,7 +63,7 @@ class SecretKey:
 class PublicKey:
     """Stores the public key values: g, [Y_1,...,Y_L], g_hat, X_hat, [Y_hat_1,...,Y_hat_L] and values L along with all_attributes, concatenating:
     - the Bn representation of None value at first index (the one dedicated to username attribute). Allows to make `None` a valid attribute.
-    - the Bn representation of all subscription"""
+    - the Bn representation of all subscription, assuming correct ordering"""
 
     def __init__(
         self,
@@ -173,7 +173,7 @@ def generate_key(attributes: List[Attribute]) -> Tuple[SecretKey, PublicKey]:
     for attr in attributes:
         if not isinstance(attr, Bn) or not attr >= 0:
             raise TypeError("Attributes should be Bn positive objects")
-            
+
     y_list = [G1.order().random() for _ in range(l)]
     x = G1.order().random()
 

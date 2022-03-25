@@ -21,8 +21,13 @@ jobs:
         docker compose build
         docker compose up -d
         docker exec --workdir /server cs523-server chmod 700 /var/lib/tor/hidden_service/
-        docker exec --workdir /server cs523-server python3 server.py setup -S mock-setup
-        docker exec -d --workdir /server cs523-server python3 server.py run
         docker exec --workdir /client cs523-client pip install -r requirements.txt
-        docker exec --workdir /client cs523-client pytest test_stroll.py
+        docker exec --workdir /server cs523-server python3 server.py setup -S restaurant -S bar -S sushi
+        docker exec -d --workdir /server cs523-server python3 server.py run
+        docker exec --workdir /client cs523-client pytest test_stroll.py::test_success_run_1
+        docker compose down
+        docker compose up
+        docker exec --workdir /server cs523-server python3 server.py setup -S cybercafe -S hotel
+        docker exec -d --workdir /server cs523-server python3 server.py run
+        docker exec --workdir /client cs523-client pytest test_stroll.py::test_success_run_2
         docker compose down

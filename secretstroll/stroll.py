@@ -12,7 +12,11 @@ from serialization import jsonpickle
 
 
 # Type aliases
-
+"""Represents the secret user state, containing: 
+    - the t value used to generate the issue request
+    - the user attributes, hidden to the issuer
+    - the username
+"""
 UserState = Tuple[tAndUserAttributes, str]
 
 
@@ -45,7 +49,7 @@ class Server:
             should be encoded as bytes.
         """
         # adds an attribute the represent the fact that username is part of attributes
-        attributes = subscriptions
+        attributes = list(map(lambda x: str_to_attribute(x), ["None"] + subscriptions))
         sk, pk = generate_key(attributes)
         server_sk = jsonpickle.encode(sk).encode()
         server_pk = jsonpickle.encode(pk).encode()
@@ -242,13 +246,12 @@ def subset_subscriptions_to_attribute_map(
     )
     attributes_map = {
         i: (
-            str_to_attribute(subscr)
+            subscr
             if subscr in subscriptions_as_attributes
             else str_to_attribute("None")
         )
         for i, subscr in all_attributes_map.items()
     }
-    assert check_attribute_map(attributes_map, len(all_attributes))
     return attributes_map
 
 

@@ -32,9 +32,12 @@ from hashlib import sha256
 # SecretKey = List[Any]
 # PublicKey = List[Any]
 # Signature = Any
-"""A mod p element (p the order of pairing groups). Bn values might be derived from a string representation, but are here used in their Bn form for computations"""
+"""A mod p element (p the order of pairing groups). Bn values might be derived from a string representation, but are here used in their Bn form for computations. One should ensure those are strictly positive numbers to be able to serialize this using `binary()` method for Bn"""
 Attribute = Bn
-"""Map from an attribute index to its Bn value: {i->a_i}"""
+"""Map from an attribute index to its Bn value: {i->a_i}
+The full map of attributes is expected to have:
+- i=1 -> username Bn representation (can be any Bn mod order(Q1))
+- i>1 -> subscription Bn representation (or None)"""
 AttributeMap = dict[int, Bn]
 # IssueRequest = Any
 # BlindSignature = Any
@@ -43,11 +46,11 @@ AttributeMap = dict[int, Bn]
 """Contains secret values t (random secret to produce commitment value) and the user_attributes that will be blindly signed. This will be used by the user to compute their full credential"""
 tAndUserAttributes = Tuple[Bn, AttributeMap]
 
-ATTRIBUTE_MAP_ERROR = "Incorrect attributes map: should be a dict of 0 to L values with keys in [1,L] and attribute values should be positive numbers"
+ATTRIBUTE_MAP_ERROR = "Incorrect attributes map: Checks if an attribute map content is consistent with requirements on: - length, there cannot be more than `pk.all_attributes` as it stores all the possible attributes of the system - all index,attribute pair, (see `check_index_attribute_valid`)"
 
 
 class SecretKey:
-    """Stores the private key values"""
+    """Stores the private key values: x, X, [y_1,...,y_L] and L value"""
 
     def __init__(self, x: Bn, g: G1Element, y_list: List[Bn]) -> None:
         self.x = x.mod(G1.order())
@@ -58,7 +61,9 @@ class SecretKey:
 
 
 class PublicKey:
-    """Stores the public key values"""
+    """Stores the public key values: g, [Y_1,...,Y_L], g_hat, X_hat, [Y_hat_1,...,Y_hat_L] and values L along with all_attributes, concatenating:
+    - the Bn representation of None value at first index (the one dedicated to username attribute). Allows to make `None` a valid attribute.
+    - the Bn representation of all subscription"""
 
     def __init__(
         self,
@@ -100,8 +105,12 @@ class PedersenKnowledgeProof:
             - the secret attribute index for the verifier to identify which public key to put to the response power"""
 
     def __init__(
-        self, challenge: Bn, response_0: Bn, response_attr_index: List[Tuple[Bn, int]]
+        self,
+        challenge: Bn,
+        response_0: Bn,
+        response_attr_index: List[Tuple[Attribute, int]],
     ) -> None:
+        """We make sure all the received attributes are taken modulo G1 order (making them positive)"""
         self.challenge = challenge.mod(G1.order())
         self.response_0 = response_0.mod(G1.order())
         self.response_index = list(
@@ -134,11 +143,13 @@ class BlindSignature:
 
 
 class AnonymousCredential:
-    """Stores the final anonymous credential and all the attributes it signs for"""
+    """Stores the final anonymous credential and all the attributes it signs for. Takes care of taking the attributes modulo G1 order as all attribute representations in Bn should be"""
 
     def __init__(self, sigma: Signature, attributes: AttributeMap) -> None:
         self.sigma = sigma
-        self.attributes = attributes
+        self.attributes = dict(
+            map(lambda x: (x[0], x[1].mod(G1.order())), attributes.items())
+        )
 
 
 class DisclosureProof:
@@ -159,7 +170,10 @@ def generate_key(attributes: List[Attribute]) -> Tuple[SecretKey, PublicKey]:
     l = len(attributes)
     if l < 1:
         raise ValueError("There must be at least one attribute")
-
+    for attr in attributes:
+        if not isinstance(attr, Bn) or not attr >= 0:
+            raise TypeError("Attributes should be Bn positive objects")
+            
     y_list = [G1.order().random() for _ in range(l)]
     x = G1.order().random()
 
@@ -179,9 +193,7 @@ def sign(sk: SecretKey, msgs: List[bytes]) -> Signature:
         msgs: a list of bytes vector messages. We assume a jsonpickle encoded python object that can be decoded to a Bn object. The jsonpickle decoded object m_i is set to power g ** m_i with g a G1 element.
     """
     if sk.L != len(msgs):
-        raise ValueError(
-            "Messages should have length L"
-        )
+        raise ValueError("Messages should have length L")
     for msg in msgs:
         if not isinstance(jsonpickle.decode(msg), Bn):
             raise TypeError("Messages should be jsonpickle encoded Bn objects")
@@ -202,9 +214,7 @@ def verify(pk: PublicKey, signature: Signature, msgs: List[bytes]) -> bool:
         msgs: a list of bytes vector messages. We assume a jsonpickle encoded python object that can be decoded to a Bn object. The jsonpickle decoded object m_i is set to power g ** m_i with g a G1 element.
     """
     if pk.L != len(msgs):
-        raise ValueError(
-            "Messages should have length L"
-        )
+        raise ValueError("Messages should have length L")
 
     for msg in msgs:
         if not isinstance(jsonpickle.decode(msg), Bn):
@@ -250,7 +260,7 @@ def create_issue_request(
             - the user state containing the witness t used to generate the commit value and the attribute map of the user credentials that will be blindly signed by the signer. To be used in the obtain_credential function
             - the request object to be sent to the issuer. This is made to be sent as is to the issuer.
     """
-    if not check_attribute_map(user_attributes, pk.L):
+    if not check_attribute_map(user_attributes, pk):
         raise ValueError(ATTRIBUTE_MAP_ERROR)
     t = G1.order().random()
     user_state = (t, user_attributes)
@@ -272,7 +282,7 @@ def sign_issue_request(
 
     This corresponds to the "issuer signing" step in the issuance protocol.
     """
-    if not check_attribute_map(issuer_attributes, pk.L):
+    if not check_attribute_map(issuer_attributes, pk):
         raise ValueError(ATTRIBUTE_MAP_ERROR)
     if not verify_issue_request_knowledge_proof(request, pk):
         raise ValueError(
@@ -312,8 +322,8 @@ def obtain_credential(
     """
     t, user_attributes = state
     if not check_attribute_map(
-        response.issuer_attributes, pk.L
-    ) or not check_attribute_map(user_attributes, pk.L):
+        response.issuer_attributes, pk
+    ) or not check_attribute_map(user_attributes, pk):
         raise ValueError(ATTRIBUTE_MAP_ERROR)
     if pk.L != len(user_attributes) + len(response.issuer_attributes):
         raise ValueError(
@@ -333,6 +343,55 @@ def obtain_credential(
     return AnonymousCredential(sigma, sorted_all_attributes)
 
 
+def create_issue_request_knowledge_proof(
+    pk: PublicKey, t: Bn, user_attributes: AttributeMap
+) -> PedersenKnowledgeProof:
+    """Create the Zero Knowledge Proof object that shows knowledge of commit value t and attributes (a_i) for i in U, the user attributes hidden to issuer. Follows the Pederson commitment implementation from Exercice Set 1.2 with a non-interactive adaptation"""
+    randoms = [G1.order().random()]
+    U = len(user_attributes)
+    commit = pk.g ** randoms[0]
+    sorted_user_attributes = dict(sorted(user_attributes.items()))
+    if U > 0:
+        r_list = [G1.order().random() for _ in range(U)]
+        # Computes the list of Y_i^r_j for i in U (user attributes' indexes) and j in [1,...,|U|] (number of user attributes)
+        Y_s_prod = [
+            pk.Y_list[i - 1] ** r_list[j]
+            for j, i in enumerate(sorted_user_attributes.keys())
+        ]
+        randoms += r_list
+        commit *= G1.prod(Y_s_prod)
+    challenge = Bn.from_hex(
+        sha256(jsonpickle.encode((pk.pk, commit)).encode()).hexdigest()
+    ).mod(G1.order())
+
+    responses = [randoms[0] - challenge * t]
+    response_index = []
+    if U > 0:
+        # computes a list of responses s = r - c * a_i
+        responses += [
+            rnd - challenge * attr
+            for rnd, attr in zip(randoms[1:], sorted_user_attributes.values())
+        ]
+        response_index = list(zip(responses[1:], sorted_user_attributes.keys()))
+    return PedersenKnowledgeProof(challenge, responses[0], response_index)
+
+
+def verify_issue_request_knowledge_proof(
+    issue_req: IssueRequest, pk: PublicKey
+) -> bool:
+    """Verifies the Zero Knowledge Proof object that shows knowledge of commit value t and attributes (a_i) for i in U, the user attributes hidden to issuer. Follows the Pederson commitment implementation from Exercice Set 1.2 with a non-interactive adaptation"""
+    C, pi = issue_req.C, issue_req.pi
+    commit = C**pi.challenge * pk.g**pi.response_0
+    if len(pi.response_index) > 0:
+        commit *= G1.prod(
+            [pk.Y_list[index - 1] ** resp for resp, index in pi.response_index]
+        )
+    challenge_prime = Bn.from_hex(
+        sha256(jsonpickle.encode((pk.pk, commit)).encode()).hexdigest()
+    ).mod(G1.order())
+    return pi.challenge == challenge_prime
+
+
 ## SHOWING PROTOCOL ##
 
 
@@ -350,8 +409,8 @@ def create_disclosure_proof(
 
     To create the proof we compute the right_side with random elements instead of the secrets. This is our R value. We then send a challenge based on R as well as elements constructed from the secrets and their random counterparts (responses), this is a done in a Pederson proof of knowledge way but adapted to the GT group
     """
-    if not check_attribute_map(credential.attributes, pk.L) or not check_attribute_map(
-        hidden_attributes, pk.L
+    if not check_attribute_map(credential.attributes, pk) or not check_attribute_map(
+        hidden_attributes, pk
     ):
         raise ValueError(ATTRIBUTE_MAP_ERROR)
     sorted_hidden_attributes = dict(sorted(hidden_attributes.items()))
@@ -416,7 +475,7 @@ def verify_disclosure_proof(
     We verify this by comparing challenge(R) and challenge(R')
     This concludes our proof
     """
-    if not check_attribute_map(disclosed_attributes, pk.L):
+    if not check_attribute_map(disclosed_attributes, pk):
         raise ValueError(ATTRIBUTE_MAP_ERROR)
     # Need to verify that sigma1 is not the unity element in G1
     if disclosure_proof.sigma.sigma1 == G1.unity:
@@ -463,76 +522,40 @@ def verify_disclosure_proof(
 
 
 ####################################
-## TOOLS METHODS FOR COMPUTATIONS ##
+# TOOLS METHODS FOR ATTRIBUTES MAP #
 ####################################
 
 
-def check_attribute_map(attributes: AttributeMap, L: int) -> bool:
-    """Checks if an attribute map content is consistent with an L value from a public parameter of keys"""
-    if len(attributes) > L:
+def check_attribute_map(attributes: AttributeMap, pk: PublicKey) -> bool:
+    """Checks if an attribute map content is consistent with requirements on:
+    - length, there cannot be more than `pk.all_attributes` as it stores all the possible attributes of the system
+    - all index,attribute pair are valid (see `check_index_attribute_valid`)"""
+    if len(attributes) > pk.L:
         # checks if there are too many attributes
         return False
-    for index, attr in attributes.items():
-        # check if indexes reference valid attributes
-        if index < 1 or index > L:
-            return False
-        # check if the attributes are positive numbers
-        if attr < 0:
-            return False
-    return True
+    return all(
+        check_index_attribute_valid(index, attr, pk)
+        for index, attr in attributes.items()
+    )
+
+
+def check_index_attribute_valid(
+    index: int, attribute: Attribute, pk: PublicKey
+) -> bool:
+    """Checks if:
+    - the index is in range [1,L]
+    - the attribute is a positive number
+    - if the index is not 1 (attribute represents strictly a subscription), the subscrption is a valid one in the system
+    Note that the username attribute is represented as `None` in the list `pk.all_attributes`. This allows to check the map is valid even if we have some attribute value set to `None`"""
+    return (index > 0 and index <= pk.L and attribute >= 0) and (
+        attribute in pk.all_attributes if index > 1 else True
+    )
 
 
 def attributes_to_bytes(attributes: AttributeMap) -> List[bytes]:
-    """Converts an attribute map to a list of encoded attributes. Helps representing the attributes as messages to be signed for an anonymous credential issuance. Assumes no sorting of the incoming map and returns list of values sorted by their previous map's keys"""
+    """Converts an attribute map to a list of encoded attributes. Helps representing the attributes as messages to be signed for an anonymous credential issuance.
+    - Assumes no sorting of the incoming map and returns list of values sorted by their previous map's keys.
+    - Assumes attributes are valid and already taken positive and mod p"""
     # we take care of sorting attributes by keys in order to have it consistent with the list representation
     sorted_attributes = dict(sorted(attributes.items()))
     return list(map(lambda bn: jsonpickle.encode(bn), sorted_attributes.values()))
-
-
-def create_issue_request_knowledge_proof(
-    pk: PublicKey, t: Bn, user_attributes: AttributeMap
-) -> PedersenKnowledgeProof:
-    """Create the Zero Knowledge Proof object that shows knowledge of commit value t and attributes (a_i) for i in U, the user attributes hidden to issuer. Follows the Pederson commitment implementation from Exercice Set 1.2 with a non-interactive adaptation"""
-    randoms = [G1.order().random()]
-    U = len(user_attributes)
-    commit = pk.g ** randoms[0]
-    sorted_user_attributes = dict(sorted(user_attributes.items()))
-    if U > 0:
-        r_list = [G1.order().random() for _ in range(U)]
-        # Computes the list of Y_i^r_j for i in U (user attributes' indexes) and j in [1,...,|U|] (number of user attributes)
-        Y_s_prod = [
-            pk.Y_list[i - 1] ** r_list[j]
-            for j, i in enumerate(sorted_user_attributes.keys())
-        ]
-        randoms += r_list
-        commit *= G1.prod(Y_s_prod)
-    challenge = Bn.from_hex(
-        sha256(jsonpickle.encode((pk.pk, commit)).encode()).hexdigest()
-    ).mod(G1.order())
-
-    responses = [randoms[0] - challenge * t]
-    response_index = []
-    if U > 0:
-        # computes a list of responses s = r - c * a_i
-        responses += [
-            rnd - challenge * attr
-            for rnd, attr in zip(randoms[1:], sorted_user_attributes.values())
-        ]
-        response_index = list(zip(responses[1:], sorted_user_attributes.keys()))
-    return PedersenKnowledgeProof(challenge, responses[0], response_index)
-
-
-def verify_issue_request_knowledge_proof(
-    issue_req: IssueRequest, pk: PublicKey
-) -> bool:
-    """Verifies the Zero Knowledge Proof object that shows knowledge of commit value t and attributes (a_i) for i in U, the user attributes hidden to issuer. Follows the Pederson commitment implementation from Exercice Set 1.2 with a non-interactive adaptation"""
-    C, pi = issue_req.C, issue_req.pi
-    commit = C**pi.challenge * pk.g**pi.response_0
-    if len(pi.response_index) > 0:
-        commit *= G1.prod(
-            [pk.Y_list[index - 1] ** resp for resp, index in pi.response_index]
-        )
-    challenge_prime = Bn.from_hex(
-        sha256(jsonpickle.encode((pk.pk, commit)).encode()).hexdigest()
-    ).mod(G1.order())
-    return pi.challenge == challenge_prime

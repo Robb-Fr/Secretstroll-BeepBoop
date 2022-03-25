@@ -5,7 +5,7 @@ import string
 from threading import Thread
 
 from credential import *
-from stroll import * 
+from stroll import *
 import client, server
 from petrelic.bn import Bn
 from petrelic.multiplicative.pairing import G1, G2, GT
@@ -17,18 +17,18 @@ import os
 MIN_NB_ATTRIBUTES = 1
 MAX_NB_ATTRIBUTES = 10
 
+
 def test_jsonpickle():
     list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     attributesmap = AttributeMap(dict(enumerate(attributes)))
-    
+
     attributesmap_serialized = jsonpickle.encode(attributesmap).encode()
     attributesmap_deserialized = jsonpickle.decode(attributesmap_serialized)
 
     assert type(attributesmap_serialized) is bytes
 
-
-    #assert attributesmap_deserialized == attributesmap
+    # assert attributesmap_deserialized == attributesmap
 
     sk, pk = generate_key(attributes)
     sk_serialized = jsonpickle.encode(sk).encode()
@@ -60,9 +60,10 @@ def test_jsonpickle():
     sign_deserialized = jsonpickle.decode(sign_serialized)
     assert type(sign_deserialized) is Signature
     assert type(sign_serialized) is bytes
-    assert signature.sigma == sign_deserialized.sigma 
+    assert signature.sigma == sign_deserialized.sigma
     assert signature.sigma1 == sign_deserialized.sigma1
-    assert signature.sigma2 == sign_deserialized.sigma2 
+    assert signature.sigma2 == sign_deserialized.sigma2
+
 
 # def test_str_to_attributemap():
 #     subscriptions = ["beach", "cinema", "bar", "museum", "casino"]
@@ -103,11 +104,13 @@ def test_sign():
     assert server.check_request_signature(pk, msg, disclosed_sub, sign)
     """
 
+
 def test_success_run():
     server.main("setup -S restaurant -S bar -S sushi".split())
     client.main(["get-pk"])
     client.main("register -u tom -S restaurant -S bar".split())
     client.main("loc 46.52345 6.57890 -T restaurant -T bar".split())
+
 
 ####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##

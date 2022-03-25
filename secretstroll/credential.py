@@ -36,7 +36,7 @@ from hashlib import sha256
 Attribute = Bn
 """Map from an attribute index to its Bn value: {i->a_i}
 The full map of attributes is expected to have:
-- i=1 -> username Bn representation (can be any Bn mod order(Q1))
+- i=1 -> user secret Bn representation (can be any Bn mod order(Q1))
 - i>1 -> subscription Bn representation (or None)"""
 AttributeMap = dict[int, Bn]
 # IssueRequest = Any
@@ -62,7 +62,7 @@ class SecretKey:
 
 class PublicKey:
     """Stores the public key values: g, [Y_1,...,Y_L], g_hat, X_hat, [Y_hat_1,...,Y_hat_L] and values L along with all_attributes, concatenating:
-    - the Bn representation of None value at first index (the one dedicated to username attribute). Allows to make `None` a valid attribute.
+    - the Bn representation of None value at first index (the one dedicated to user secret attribute). Allows to make `None` a valid attribute.
     - the Bn representation of all subscription, assuming correct ordering"""
 
     def __init__(
@@ -546,7 +546,7 @@ def check_index_attribute_valid(
     - the index is in range [1,L]
     - the attribute is a positive number
     - if the index is not 1 (attribute represents strictly a subscription), the subscrption is a valid one in the system
-    Note that the username attribute is represented as `None` in the list `pk.all_attributes`. This allows to check the map is valid even if we have some attribute value set to `None`"""
+    Note that the user secret attribute is represented as `None` in the list `pk.all_attributes`. This allows to check the map is valid even if we have some attribute value set to `None`"""
     return (index > 0 and index <= pk.L and attribute >= 0) and (
         attribute in pk.all_attributes if index > 1 else True
     )

@@ -147,3 +147,4 @@ secretstroll/key.pub
 secretstroll/key.sec
 secretstroll/anon.cred
 secretstroll/key-client.pub
+secretstroll/tor/.tor/cached-microdescs.tmp

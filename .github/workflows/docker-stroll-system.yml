@@ -26,7 +26,8 @@ jobs:
         docker exec -d --workdir /server cs523-server python3 server.py run
         docker exec --workdir /client cs523-client pytest test_stroll.py::test_success_run_1
         docker compose down
-        docker compose up
+        docker compose up -d
+        docker exec --workdir /client cs523-client pip install -r requirements.txt
         docker exec --workdir /server cs523-server python3 server.py setup -S cybercafe -S hotel
         docker exec -d --workdir /server cs523-server python3 server.py run
         docker exec --workdir /client cs523-client pytest test_stroll.py::test_success_run_2

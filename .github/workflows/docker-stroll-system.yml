@@ -14,7 +14,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build the Docker image
+    - name: Build and test the Docker image
       run: |
         cd secretstroll
         chmod 777 tor

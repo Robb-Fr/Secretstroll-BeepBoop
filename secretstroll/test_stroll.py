@@ -106,7 +106,6 @@ def test_sign():
 
 
 def test_success_run_1():
-    server.main("setup -S restaurant -S bar -S sushi".split())
     client.main(["get-pk"])
     client.main("register -u tom -S restaurant -S bar".split())
     client.main("loc 46.52345 6.57890 -T restaurant -T bar".split())
@@ -114,7 +113,6 @@ def test_success_run_1():
 
 
 def test_success_run_2():
-    server.main("setup -S cybercafe -S hotel".split())
     client.main(["get-pk"])
     client.main("register -u beepboop -S cybercafe -S hotel".split())
     client.main("grid 42 -T cybercafe -T hotel".split())

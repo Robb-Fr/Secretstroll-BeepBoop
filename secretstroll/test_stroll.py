@@ -1,12 +1,9 @@
 import random
 from typing import List
 import pytest
-import string
-from threading import Thread
 
 from credential import *
 from stroll import *
-import client, server
 from petrelic.bn import Bn
 from petrelic.multiplicative.pairing import G1, G2, GT
 import os
@@ -23,12 +20,11 @@ def test_jsonpickle():
     attributes = [G1.order().random() for _ in range(list_len)]
     attributesmap = AttributeMap(dict(enumerate(attributes)))
 
-    attributesmap_serialized = jsonpickle.encode(attributesmap).encode()
-    attributesmap_deserialized = jsonpickle.decode(attributesmap_serialized)
+    attributesmap_serialized = jsonpickle.encode(attributesmap, keys=True).encode()
+    attributesmap_deserialized = jsonpickle.decode(attributesmap_serialized, keys=True)
 
     assert type(attributesmap_serialized) is bytes
-
-    # assert attributesmap_deserialized == attributesmap
+    assert attributesmap_deserialized == attributesmap
 
     sk, pk = generate_key(attributes)
     sk_serialized = jsonpickle.encode(sk).encode()
@@ -64,10 +60,6 @@ def test_jsonpickle():
     assert signature.sigma1 == sign_deserialized.sigma1
     assert signature.sigma2 == sign_deserialized.sigma2
 
-
-# def test_str_to_attributemap():
-#     subscriptions = ["beach", "cinema", "bar", "museum", "casino"]
-#     attributes = dict{1: Bn.from_decimal}
 
 """
 def test_sign():
@@ -105,18 +97,22 @@ def test_sign():
     """
 
 
-def test_success_run_1():
-    client.main(["get-pk"])
-    client.main("register -u tom -S restaurant -S bar".split())
-    client.main("loc 46.52345 6.57890 -T restaurant -T bar".split())
-    client.main("loc 46.52575 6.57870 -T bar".split())
-
-
-def test_success_run_2():
-    client.main(["get-pk"])
-    client.main("register -u beepboop -S cybercafe -S hotel".split())
-    client.main("grid 42 -T cybercafe -T hotel".split())
-    client.main("grid 45 -T cybercafe".split())
+def test_generate_ca(benchmark):
+    server = Server()
+    client = Client()
+    subscriptions = ["baseball", "bar"]
+    benchmark(server.generate_ca, subscriptions)
+    sk, pk = server.generate_ca(subscriptions)
+    sk = jsonpickle.decode(sk)
+    pk = jsonpickle.decode(pk)
+    assert isinstance(sk, SecretKey) and isinstance(pk, PublicKey)
+    # we now make sure the key pair is valid to use
+    msgs = [
+        jsonpickle.encode(client.client_secret).encode(),
+        jsonpickle.encode(str_to_attribute("None")).encode(),
+        jsonpickle.encode(str_to_attribute("bar")).encode(),
+    ]
+    assert verify(pk, sign(sk, msgs), msgs)
 
 
 ####################################

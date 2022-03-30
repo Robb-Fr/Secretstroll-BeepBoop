@@ -327,7 +327,7 @@ def obtain_credential(
         raise ValueError(ATTRIBUTE_MAP_ERROR)
     if pk.L != len(user_attributes) + len(response.issuer_attributes):
         raise ValueError(
-            "The sum of issuer and user signed attributes should be less than L"
+            "The sum of issuer and user signed attributes should be equal to L"
         )
     sigma1 = response.sigma1
     sigma2 = response.sigma2 / (sigma1**t)

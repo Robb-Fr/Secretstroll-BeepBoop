@@ -61,48 +61,12 @@ def test_jsonpickle():
     assert signature.sigma2 == sign_deserialized.sigma2
 
 
-"""
-def test_sign():
-    # initialise server, client
-    server = Server()
-    client = Client()
-
-    # setup
-    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
-    letters = string.digits
-    sub_index_upper_bound = max(2, list_len-1)
-    subscriptions = [''.join(random.choice(letters) for i in range(length)) for length in range(1,sub_index_upper_bound)]
-    username = ''.join(random.choice(letters) for i in range(random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)))
-    #msgs = attributes_to_bytes(dict(enumerate(subscriptions)))
-    #index_upper_bound = min(0, len(msgs)-1)
-    #rand_index = random.randint(0,index_upper_bound)
-    #msg = msgs[rand_index]
-    msg = os.urandom(10)
-
-    #user_subscriptions, _ = randomly_split_subscriptions(subscriptions)
-    hidden_sub, disclosed_sub = randomly_split_subscriptions(subscriptions)
-
-
-    assert len(subscriptions)>0
-
-
-    # execute exchanges 
-    sk, pk = server.generate_ca(subscriptions)
-    issue_req, state = client.prepare_registration(pk, username, subscriptions)
-    resp = server.process_registration(sk, pk, issue_req, username, subscriptions)
-    cred = client.process_registration_response(pk, resp, state)
-    sign = client.sign_request(pk, cred, msg, hidden_sub)
-
-    assert server.check_request_signature(pk, msg, disclosed_sub, sign)
-    """
-
-
 def test_generate_ca(benchmark):
     server = Server()
     client = Client()
     subscriptions = ["baseball", "bar"]
-    benchmark(server.generate_ca, subscriptions)
     sk, pk = server.generate_ca(subscriptions)
+    benchmark(server.generate_ca, subscriptions)
     sk = jsonpickle.decode(sk)
     pk = jsonpickle.decode(pk)
     assert isinstance(sk, SecretKey) and isinstance(pk, PublicKey)
@@ -115,21 +79,99 @@ def test_generate_ca(benchmark):
     assert verify(pk, sign(sk, msgs), msgs)
 
 
-####################################
-## TOOLS METHODS FOR COMPUTATIONS ##
-####################################
+def test_issuance_protocol(benchmark):
+    server = Server()
+    client = Client()
+    all_subscriptions = ["stadium", "hotel", "cool location"]
+    user_subscription = ["hotel", "stadium"]
+    sk, pk = server.generate_ca(all_subscriptions)
+    # we make subfunction that captures the functionnality to that we can send it in becnhmark
+    def make_registration():
+        issue_req, user_state = client.prepare_registration(
+            pk, "beepboop", user_subscription
+        )
+        blind_sig = server.process_registration(
+            sk, pk, issue_req, "beepboop", user_subscription
+        )
+        cred = client.process_registration_response(pk, blind_sig, user_state)
+
+    make_registration()
+    benchmark(make_registration)
 
 
-def randomly_split_subscriptions(
-    subscriptions: List[str],
-) -> Tuple[List[str], List[str]]:
-    """From the list of all attributes, split in 2 lists of indices mapped to their related attribute"""
-    L = len(subscriptions)
-    # creates sguffled dict with keys in [1,L]
-    shuffled_subscriptions = subscriptions.copy()
-    random.shuffle(shuffled_subscriptions)
-    split_index = random.randint(0, L)
-    user_subs = shuffled_subscriptions[:split_index]
-    issuer_subs = shuffled_subscriptions[split_index:]
+def test_showing_protocol(benchmark):
+    server = Server()
+    client = Client()
+    all_subscriptions = ["glouglou", "home"]
+    sk, pk = server.generate_ca(all_subscriptions)
+    user_subscription = ["glouglou"]
+    issue_req, user_state = client.prepare_registration(pk, "robb", user_subscription)
+    blind_sig = server.process_registration(
+        sk, pk, issue_req, "robb", user_subscription
+    )
+    cred = client.process_registration_response(pk, blind_sig, user_state)
+    showed_subscription = ["glouglou"]
 
-    return user_subs, issuer_subs
+    cell_id = "51".encode()
+    disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
+    benchmark(client.sign_request, pk, cred, cell_id, showed_subscription)
+
+
+def test_verifying_protocol(benchmark):
+    server = Server()
+    client = Client()
+    all_subscriptions = ["beach", "waterfall"]
+    sk, pk = server.generate_ca(all_subscriptions)
+    user_subscription = ["waterfall", "beach"]
+    issue_req, user_state = client.prepare_registration(pk, "mama", user_subscription)
+    blind_sig = server.process_registration(
+        sk, pk, issue_req, "mama", user_subscription
+    )
+    cred = client.process_registration_response(pk, blind_sig, user_state)
+    showed_subscription = ["waterfall"]
+
+    cell_id = "99".encode()
+    disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
+    assert server.check_request_signature(pk, cell_id, showed_subscription, disc_proof)
+    benchmark(
+        server.check_request_signature, pk, cell_id, showed_subscription, disc_proof
+    )
+
+
+def test_protocol_fails():
+    server = Server()
+    client = Client()
+    all_subscriptions = ["pool", "park", "shadow-moses"]
+    sk, pk = server.generate_ca(all_subscriptions)
+
+    ## cannot subscribe to unknown attributes ##
+    with pytest.raises(ValueError):
+        user_subscription = random.choice([[], ["restaurant", "park"]])
+        issue_req, user_state = client.prepare_registration(
+            pk, "john", user_subscription
+        )
+        blind_sig = server.process_registration(
+            sk, pk, issue_req, "john", user_subscription
+        )
+
+    user_subscription = ["shadow-moses", "pool"]
+    issue_req, user_state = client.prepare_registration(pk, "john", user_subscription)
+    blind_sig = server.process_registration(
+        sk, pk, issue_req, "john", user_subscription
+    )
+    cred = client.process_registration_response(pk, blind_sig, user_state)
+
+    ## cannot show non-existing attributes ##
+    with pytest.raises(ValueError):
+        showed_subscription = random.choice([[], ["blah"]])
+        cell_id = "99".encode()
+        disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
+        server.check_request_signature(pk, cell_id, showed_subscription, disc_proof)
+
+    showed_subscription = random.choice([["park"], ["park", "pool"]])
+    cell_id = "12".encode()
+    disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
+    ## cannot show attributes the credential does not sign for ##
+    assert not server.check_request_signature(
+        pk, cell_id, showed_subscription, disc_proof
+    )

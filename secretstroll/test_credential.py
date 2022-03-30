@@ -1,5 +1,6 @@
 import random
 from typing import List
+from attr import attr
 import pytest
 
 from credential import *
@@ -17,8 +18,8 @@ MAX_NB_ATTRIBUTES = 4
 def test_generate_key(benchmark):
     list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
-    benchmark(generate_key, attributes)
     Sk, Pk = generate_key(attributes)
+    benchmark(generate_key, attributes)
     assert Sk.L == list_len
     assert len(Sk.sk) == list_len + 2
     assert Pk.L == list_len
@@ -36,8 +37,8 @@ def test_sign(benchmark):
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
     msgs = attributes_to_bytes(dict(enumerate(attributes)))
-    benchmark(sign, Sk, msgs)
     sigma = sign(Sk, msgs)
+    benchmark(sign, Sk, msgs)
 
     assert verify(Pk, sigma, msgs)
 
@@ -77,8 +78,8 @@ def test_issue_request(benchmark):
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
     # start request
-    benchmark(create_issue_request, Pk, user_attributes)
     user_state, issue_req = create_issue_request(Pk, user_attributes)
+    benchmark(create_issue_request, Pk, user_attributes)
     # if no error thrown, success
 
 
@@ -90,8 +91,8 @@ def test_sign_issue_request(benchmark):
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
     # start request
     user_state, issue_req = create_issue_request(Pk, user_attributes)
-    benchmark(sign_issue_request, Sk, Pk, issue_req, issuer_attributes)
     blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
+    benchmark(sign_issue_request, Sk, Pk, issue_req, issuer_attributes)
     # if no error thrown, success
 
 
@@ -101,8 +102,8 @@ def test_verify_issue_request(benchmark):
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
     user_state, issue_req = create_issue_request(Pk, user_attributes)
-    benchmark(verify_issue_request_knowledge_proof, issue_req, Pk)
     assert verify_issue_request_knowledge_proof(issue_req, Pk)
+    benchmark(verify_issue_request_knowledge_proof, issue_req, Pk)
 
 
 def test_obtain_credential():
@@ -175,7 +176,7 @@ def test_obtaining_credential_fail():
 ## SHOWING PROTOCOL ##
 
 
-def test_disclosure_proof_verification():
+def test_disclosure_proof_verification(benchmark):
     list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
@@ -191,10 +192,12 @@ def test_disclosure_proof_verification():
     disc_proof = create_disclosure_proof(Pk, anon_cred, hidden_attributes, msg)
 
     assert verify_disclosure_proof(Pk, disc_proof, disclosed_attributes, msg)
+    benchmark(verify_disclosure_proof, Pk, disc_proof, disclosed_attributes, msg)
 
 
+"""
 def test_disclosure_proof_equality():
-    """Preliminary tests for the proof implementation"""
+    Preliminary tests for the proof implementation
     list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
     attributes = [G1.order().random() for _ in range(list_len)]
     Sk, Pk = generate_key(attributes)
@@ -230,7 +233,7 @@ def test_disclosure_proof_equality():
     left_side = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
 
     assert left_side == right_side
-
+"""
 
 ####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##

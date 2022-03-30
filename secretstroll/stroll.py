@@ -115,13 +115,13 @@ class Server:
         Returns:
             whether a signature is valid
         """
-        ###############################################
-        # TODO: Complete this function.
-        ###############################################
         pk = jsonpickle.decode(server_pk)
         disc_proof = jsonpickle.decode(signature, keys=True)
         if not isinstance(pk, PublicKey) or not isinstance(disc_proof, DisclosureProof):
             raise TypeError("Bad deserialization of inputs")
+
+        if not check_subscriptions(pk, revealed_attributes):
+            raise ValueError("Unknown showed attributes")
 
         disclosed_attributes = create_disclosed_attributes(pk, revealed_attributes)
         return verify_disclosure_proof(pk, disc_proof, disclosed_attributes, message)
@@ -226,8 +226,8 @@ class Client:
 
 
 def check_subscriptions(pk: PublicKey, subscriptions: List[str]) -> bool:
-    """Checks all the subscriptions input are in the list of recognized subscriptions by the server"""
-    return all(
+    """Checks all the subscriptions input are in the list of recognized subscriptions by the server and we are not in the bad case where no subscriptions are taken (makes no sense to subscribe to nothing)"""
+    return len(subscriptions) > 0 and all(
         str_to_attribute(subscr) in pk.all_attributes for subscr in subscriptions
     )
 

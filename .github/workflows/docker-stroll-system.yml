@@ -10,7 +10,7 @@ jobs:
 
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: debian-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -23,7 +23,7 @@ jobs:
         docker exec --workdir /server cs523-server chmod 700 /var/lib/tor/hidden_service/
         docker exec --workdir /client cs523-client pip install -r requirements.txt
         docker exec --workdir /server cs523-server python3 server.py setup -S restaurant -S bar -S sushi
-        docker exec -d --workdir /server cs523-server python3 server.py run -s key.sec -p key.pub
+        docker exec -d --workdir /server cs523-server python3 server.py run
         docker exec --workdir /client cs523-client python3 client.py get-pk
         docker exec --workdir /client cs523-client python3 client.py register -u diffie-beepboop -S restaurant -S bar
         docker exec --workdir /client cs523-client python3 client.py loc 46.52345 6.57890 -T restaurant -T bar

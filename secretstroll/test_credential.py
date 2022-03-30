@@ -10,8 +10,9 @@ import os
 ######################
 ## SIGNATURE SCHEME ##
 ######################
-MIN_NB_ATTRIBUTES = 1
-MAX_NB_ATTRIBUTES = 10
+MIN_NB_ATTRIBUTES = 4
+MAX_NB_ATTRIBUTES = 4
+
 
 def test_generate_key(benchmark):
     list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
@@ -100,7 +101,7 @@ def test_verify_issue_request(benchmark):
     Sk, Pk = generate_key(attributes)
     user_attributes, issuer_attributes = randomly_split_attributes(attributes)
     user_state, issue_req = create_issue_request(Pk, user_attributes)
-    benchmark(verify_issue_request_knowledge_proof,issue_req, Pk)
+    benchmark(verify_issue_request_knowledge_proof, issue_req, Pk)
     assert verify_issue_request_knowledge_proof(issue_req, Pk)
 
 

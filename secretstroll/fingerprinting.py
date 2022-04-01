@@ -2,8 +2,9 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold 
 
+import sys
 
 def classify(train_features, train_labels, test_features, test_labels):
 
@@ -24,8 +25,8 @@ def classify(train_features, train_labels, test_features, test_labels):
     Note: You are free to make changes the parameters of the RandomForestClassifier().
     """
 
-    # Initialize a random forest classifier. Change parameters if desired.
-    clf = RandomForestClassifier()
+    # Initialize a random forest classifier. We prefer to use all the jobs our processor can handle, we are people in a hurry
+    clf = RandomForestClassifier(n_jobs=-1)
     # Train the classifier using the training features and labels.
     clf.fit(train_features, train_labels)
     # Use the classifier to make predictions on the test features.

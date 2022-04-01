@@ -12,3 +12,6 @@ pytest-repeat
 pytest-xdist
 pytest-benchmark
 pytest-benchmark[histogram]
+scapy
+jupyter
+pandas

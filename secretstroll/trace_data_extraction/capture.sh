@@ -1,4 +1,6 @@
 #!/bin/bash
+### ASSUMES A RUNNING SERVER
+
 # we go back to the main folder to have the scripts and keys
 cd ..
 echo "================================================================================"
@@ -11,7 +13,7 @@ for i in {1..100}
         # we format the trace filename with the day-month-hour format and cell index
         # the day-month-hour will help differentiate between different traces for same cell (but different captures)
         # (I assume I will take 1 hour to capture for all cells)
-        trace_name=$(date +"trace_data_extraction/traces/trace_%d_%m_%Hh_cell_$i.pcap")
+        trace_name=$(date +"trace_data_extraction/traces/trace_%d_%m_%Hh_grid_$i.pcap")
         echo "Capturing $trace_name ..."
         # we capture to the file `trace_name`
         # -s 64 saves only the first 64 bytes (contains all headers and 3 bytes of the envrypted data)

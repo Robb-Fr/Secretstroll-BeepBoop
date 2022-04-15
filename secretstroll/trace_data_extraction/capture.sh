@@ -23,7 +23,7 @@ for i in {1..100}
         # records the process id of the previously launched process
         PID=$!
         # makes sure capture is setup
-        sleep 0.1
+        sleep 1
         # queries for cell i
         python3 client.py grid $i -T restaurant -t
         # we test if the query failed (returned not 0), we'll inform the user at the end
@@ -33,10 +33,10 @@ for i in {1..100}
             OUTPUT_MSG="$OUTPUT_MSG$i "
         fi
         # makes sure the capture captured all
-        sleep 0.1
+        sleep 1.5
         # sends SIGINT to the application
         kill -2 $PID
-        sleep 0.1
+        sleep 0.3
     done
 echo "================================================================================"
 echo $OUTPUT_MSG

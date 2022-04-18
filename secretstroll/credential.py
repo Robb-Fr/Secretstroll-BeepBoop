@@ -15,16 +15,15 @@ resembles the original scheme definition. However, you are free to restructure
 the functions provided to resemble a more object-oriented interface.
 """
 
+from hashlib import sha256
 from typing import Any, List, Tuple
-
-from serialization import jsonpickle
 
 from petrelic.bn import Bn
 
 # Multiplicative pairing to preserve PS guide notations
-from petrelic.multiplicative.pairing import G1Element, G2Element, GTElement, G1, G2, GT
+from petrelic.multiplicative.pairing import G1, G2, GT, G1Element, G2Element
 
-from hashlib import sha256
+from serialization import jsonpickle
 
 # Type hint aliases
 # Feel free to change them as you see fit.
@@ -32,19 +31,19 @@ from hashlib import sha256
 # SecretKey = List[Any]
 # PublicKey = List[Any]
 # Signature = Any
-"""A mod p element (p the order of pairing groups). Bn values might be derived from a string representation, but are here used in their Bn form for computations. One should ensure those are strictly positive numbers to be able to serialize this using `binary()` method for Bn"""
 Attribute = Bn
+"""A mod p element (p the order of pairing groups). Bn values might be derived from a string representation, but are here used in their Bn form for computations. One should ensure those are strictly positive numbers to be able to serialize this using `binary()` method for Bn"""
+AttributeMap = dict[int, Bn]
 """Map from an attribute index to its Bn value: {i->a_i}
 The full map of attributes is expected to have:
 - i=1 -> user secret Bn representation (can be any Bn mod order(Q1))
 - i>1 -> subscription Bn representation (or None)"""
-AttributeMap = dict[int, Bn]
 # IssueRequest = Any
 # BlindSignature = Any
 # AnonymousCredential = Any
 # DisclosureProof = Any
-"""Contains secret values t (random secret to produce commitment value) and the user_attributes that will be blindly signed. This will be used by the user to compute their full credential"""
 tAndUserAttributes = Tuple[Bn, AttributeMap]
+"""Contains secret values t (random secret to produce commitment value) and the user_attributes that will be blindly signed. This will be used by the user to compute their full credential"""
 
 ATTRIBUTE_MAP_ERROR = "Incorrect attributes map: Checks if an attribute map content is consistent with requirements on: - length, there cannot be more than `pk.all_attributes` as it stores all the possible attributes of the system - all index,attribute pair, (see `check_index_attribute_valid`)"
 

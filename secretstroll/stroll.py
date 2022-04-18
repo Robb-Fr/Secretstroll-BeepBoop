@@ -2,14 +2,13 @@
 Classes that you need to complete.
 """
 
-from typing import Any, Dict, List, Type, Union, Tuple
+from typing import Any, Dict, List, Tuple
+
 from petrelic.bn import Bn
+
 from credential import *
-
-
 # Optional import
 from serialization import jsonpickle
-
 
 # Type aliases
 """Represents the secret user state, containing: 

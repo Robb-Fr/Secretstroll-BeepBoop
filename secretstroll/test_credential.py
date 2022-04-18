@@ -1,12 +1,13 @@
+import os
 import random
 from typing import List
-from attr import attr
-import pytest
 
-from credential import *
+import pytest
+from attr import attr
 from petrelic.bn import Bn
 from petrelic.multiplicative.pairing import G1, G2, GT
-import os
+
+from credential import *
 
 ######################
 ## SIGNATURE SCHEME ##
@@ -194,46 +195,6 @@ def test_disclosure_proof_verification(benchmark):
     assert verify_disclosure_proof(Pk, disc_proof, disclosed_attributes, msg)
     benchmark(verify_disclosure_proof, Pk, disc_proof, disclosed_attributes, msg)
 
-
-"""
-def test_disclosure_proof_equality():
-    Preliminary tests for the proof implementation
-    list_len = random.randint(MIN_NB_ATTRIBUTES, MAX_NB_ATTRIBUTES)
-    attributes = [G1.order().random() for _ in range(list_len)]
-    Sk, Pk = generate_key(attributes)
-    user_attributes, issuer_attributes = randomly_split_attributes(attributes)
-    # start request
-    user_state, issue_req = create_issue_request(Pk, user_attributes)
-    blind_sig = sign_issue_request(Sk, Pk, issue_req, issuer_attributes)
-    anon_cred = obtain_credential(Pk, blind_sig, user_state)
-
-    hidden_attributes, disclosed_attributes = randomly_split_attributes(attributes)
-
-    sorted_hidden_attributes = dict(sorted(hidden_attributes.items()))
-    sorted_disclosed_attributes = dict(sorted(disclosed_attributes.items()))
-
-    # Compute the right side of the proof
-    r, t = G1.order().random(), G1.order().random()
-    rnd_sigma_1 = anon_cred.sigma.sigma1**r
-    rnd_sigma_2 = (anon_cred.sigma.sigma2 * anon_cred.sigma.sigma1**t) ** r
-    sigma1_ghat_t = rnd_sigma_1.pair(Pk.g_hat) ** t
-    sigma1_Yhat_a_list = [
-        rnd_sigma_1.pair(Pk.Y_hat_list[i - 1]) ** sorted_hidden_attributes[i]
-        for i in sorted_hidden_attributes.keys()
-    ]
-    right_side = sigma1_ghat_t * GT.prod(sigma1_Yhat_a_list)
-
-    # Compute the left side of the proof
-    sigma2_ghat = rnd_sigma_2.pair(Pk.g_hat)
-    sigma1_Y_a_list = [
-        rnd_sigma_1.pair(Pk.Y_hat_list[i - 1]) ** -sorted_disclosed_attributes[i]
-        for i in sorted_disclosed_attributes.keys()
-    ]
-    sigma1_Xhat = rnd_sigma_1.pair(Pk.X_hat)
-    left_side = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
-
-    assert left_side == right_side
-"""
 
 ####################################
 ## TOOLS METHODS FOR COMPUTATIONS ##

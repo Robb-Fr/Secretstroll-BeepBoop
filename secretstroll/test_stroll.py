@@ -1,12 +1,13 @@
+import os
 import random
 from typing import List
+
 import pytest
+from petrelic.bn import Bn
+from petrelic.multiplicative.pairing import G1, G2, GT
 
 from credential import *
 from stroll import *
-from petrelic.bn import Bn
-from petrelic.multiplicative.pairing import G1, G2, GT
-import os
 
 ###########
 ## TESTS ##

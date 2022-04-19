@@ -33,7 +33,7 @@ for i in {1..100}
             OUTPUT_MSG="$OUTPUT_MSG$i "
         fi
         # makes sure the capture captured all
-        sleep 1.5
+        sleep 3.5
         # sends SIGINT to the application
         kill -2 $PID
         sleep 0.3

@@ -29,7 +29,7 @@ def classify(train_features, train_labels, test_features, test_labels):
     """
 
     # Initialize a random forest classifier. We prefer to use all the jobs our processor can handle, we are people in a hurry
-    clf = RandomForestClassifier(n_jobs=-1)
+    clf = RandomForestClassifier(n_jobs=-1, n_estimators=230)
     # Train the classifier using the training features and labels.
     clf.fit(train_features, train_labels)
     # Use the classifier to make predictions on the test features.
@@ -59,10 +59,23 @@ def perform_crossval(features, labels, folds=10):
     labels = np.array(labels)
     features = np.array(features)
 
+    index = 0
+    total_accuracy = 0.0
     for train_index, test_index in kf.split(features, labels):
         X_train, X_test = features[train_index], features[test_index]
         y_train, y_test = labels[train_index], labels[test_index]
         predictions = classify(X_train, y_train, X_test, y_test)
+        nb_correct = sum(
+            map(lambda x: 1 if x[0] == x[1] else 0, zip(predictions, y_test))
+        )
+        # print(
+        #     "correct prediction rate at round {}: {}".format(
+        #         index, float(nb_correct) / len(predictions)
+        #     )
+        # )
+        index += 1
+        total_accuracy += float(nb_correct) / len(predictions)
+    print("total average correct rate: {}".format(total_accuracy / index))
 
     ###############################################
     # TODO: Write code to evaluate the performance of your classifier
@@ -96,10 +109,10 @@ def load_data():
     Please, refer to trace_data_extraction/trace_data_extraction.ipynb for details on chosen features
     """
 
-    features_df = pd.read_csv("trace_data_extraction/features.csv")
+    features_data = pd.read_csv("trace_data_extraction/features.csv").to_numpy(dtype=int)
 
-    features = []
-    labels = []
+    features = features_data.transpose()[1:].transpose()
+    labels = features_data.transpose()[0]
 
     return features, labels
 

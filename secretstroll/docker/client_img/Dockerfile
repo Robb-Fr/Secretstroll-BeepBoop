@@ -47,3 +47,6 @@ RUN rm -r /etc/service && cp -R /tmp/etc/* /etc/ && rm -rf /tmp/etc
 VOLUME  ["/client"]
 
 ENTRYPOINT ["runsvdir",  "-P", "/etc/service"]
+
+# Added for convinience in part 2 and 3 for in-Docker development
+RUN pip3 install -r /client/requirements.txt

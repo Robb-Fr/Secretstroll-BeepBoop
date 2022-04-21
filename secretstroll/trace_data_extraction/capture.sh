@@ -31,6 +31,8 @@ for i in {1..100}
         if [ $query_status != 0 ]
         then
             OUTPUT_MSG="$OUTPUT_MSG$i "
+            echo "Removing $trace_name"
+            rm $trace_name
         fi
         # makes sure the capture captured all
         sleep 3.5

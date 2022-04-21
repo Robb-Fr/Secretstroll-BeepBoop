@@ -35,6 +35,9 @@ echo "export VISIBLE=now" >> /etc/profile
 # Python dependancies.
 RUN pip3 install Flask Flask-SQLAlchemy jsonpickle petrelic PySocks pylint pytest requests
 
+# Added for convinience in part 2 and 3 for in-Docker development
+RUN pip3 install black pytest-repeat pytest-xdist pytest-benchmark pytest-benchmark[histogram] scapy jupyter pandas sklearn matplotlib seaborn
+
 # Client and server starts to differ here.
 
 # Add client directory.
@@ -47,6 +50,3 @@ RUN rm -r /etc/service && cp -R /tmp/etc/* /etc/ && rm -rf /tmp/etc
 VOLUME  ["/client"]
 
 ENTRYPOINT ["runsvdir",  "-P", "/etc/service"]
-
-# Added for convinience in part 2 and 3 for in-Docker development
-RUN pip3 install -r /client/requirements.txt

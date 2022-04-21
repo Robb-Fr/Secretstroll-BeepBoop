@@ -118,7 +118,7 @@ def test_showing_protocol(benchmark):
     benchmark(client.sign_request, pk, cred, cell_id, showed_subscription)
 
 
-def test_verifying_protocol(benchmark):
+def test_verifying_protocol_1(benchmark):
     server = Server()
     client = Client()
     all_subscriptions = ["beach", "waterfall"]
@@ -132,6 +132,29 @@ def test_verifying_protocol(benchmark):
     showed_subscription = ["waterfall"]
 
     cell_id = "99".encode()
+    disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
+    assert server.check_request_signature(pk, cell_id, showed_subscription, disc_proof)
+    benchmark(
+        server.check_request_signature, pk, cell_id, showed_subscription, disc_proof
+    )
+
+
+def test_verifying_protocol_1(benchmark):
+    server = Server()
+    client = Client()
+    all_subscriptions = ["shadow-moses", "mother-base", "home?", "philosphes"]
+    sk, pk = server.generate_ca(all_subscriptions)
+    user_subscription = ["home?", "shadow-moses"]
+    issue_req, user_state = client.prepare_registration(
+        pk, "naked-snake", user_subscription
+    )
+    blind_sig = server.process_registration(
+        sk, pk, issue_req, "naked-snake", user_subscription
+    )
+    cred = client.process_registration_response(pk, blind_sig, user_state)
+    showed_subscription = ["shadow-moses", "home?"]
+
+    cell_id = "100".encode()
     disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
     assert server.check_request_signature(pk, cell_id, showed_subscription, disc_proof)
     benchmark(

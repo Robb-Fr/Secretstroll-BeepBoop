@@ -139,7 +139,7 @@ def test_verifying_protocol_1(benchmark):
     )
 
 
-def test_verifying_protocol_1(benchmark):
+def test_verifying_protocol_2(benchmark):
     server = Server()
     client = Client()
     all_subscriptions = ["shadow-moses", "mother-base", "home?", "philosphes"]

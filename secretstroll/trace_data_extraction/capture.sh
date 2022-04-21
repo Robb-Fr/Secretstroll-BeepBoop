@@ -28,17 +28,17 @@ for i in {1..100}
         python3 client.py grid $i -T restaurant -t
         # we test if the query failed (returned not 0), we'll inform the user at the end
         query_status=$?
+        # makes sure the capture captured all
+        sleep 3.5
+        # sends SIGINT to the application
+        kill -2 $PID
+        sleep 0.3
         if [ $query_status != 0 ]
         then
             OUTPUT_MSG="$OUTPUT_MSG$i "
             echo "Removing $trace_name"
             rm $trace_name
         fi
-        # makes sure the capture captured all
-        sleep 3.5
-        # sends SIGINT to the application
-        kill -2 $PID
-        sleep 0.3
     done
 echo "================================================================================"
 echo $OUTPUT_MSG

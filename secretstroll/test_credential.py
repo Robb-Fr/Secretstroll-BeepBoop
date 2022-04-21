@@ -3,7 +3,6 @@ import random
 from typing import List
 
 import pytest
-from attr import attr
 from petrelic.bn import Bn
 from petrelic.multiplicative.pairing import G1, G2, GT
 

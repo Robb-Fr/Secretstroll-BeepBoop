@@ -113,7 +113,7 @@ def test_showing_protocol(benchmark):
     cred = client.process_registration_response(pk, blind_sig, user_state)
     showed_subscription = ["glouglou"]
 
-    cell_id = "grid 51".encode()
+    cell_id = "46.63784,2.09865".encode()
     disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
     benchmark(client.sign_request, pk, cred, cell_id, showed_subscription)
 
@@ -131,7 +131,7 @@ def test_verifying_protocol_1(benchmark):
     cred = client.process_registration_response(pk, blind_sig, user_state)
     showed_subscription = ["waterfall"]
 
-    cell_id = "loc 46.52345 6.57890".encode()
+    cell_id = "46.52345,6.57890".encode()
     disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
     assert server.check_request_signature(pk, cell_id, showed_subscription, disc_proof)
     benchmark(
@@ -154,7 +154,7 @@ def test_verifying_protocol_2(benchmark):
     cred = client.process_registration_response(pk, blind_sig, user_state)
     showed_subscription = ["shadow-moses", "home?"]
 
-    cell_id = "grid 100".encode()
+    cell_id = "31.39420,6.98269".encode()
     disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
     assert server.check_request_signature(pk, cell_id, showed_subscription, disc_proof)
     benchmark(
@@ -188,12 +188,12 @@ def test_protocol_fails():
     ## cannot show non-existing attributes ##
     with pytest.raises(ValueError):
         showed_subscription = random.choice([[], ["blah"]])
-        cell_id = "99".encode()
+        cell_id = "73.47920,10.39017".encode()
         disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
         server.check_request_signature(pk, cell_id, showed_subscription, disc_proof)
 
     showed_subscription = random.choice([["park"], ["park", "pool"]])
-    cell_id = "loc 46.52365 6.57092".encode()
+    cell_id = "73.32091,10.02182".encode()
     disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
     ## cannot show attributes the credential does not sign for ##
     assert not server.check_request_signature(

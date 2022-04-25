@@ -11,8 +11,8 @@ from credential import *
 ######################
 ## SIGNATURE SCHEME ##
 ######################
-MIN_NB_ATTRIBUTES = 4
-MAX_NB_ATTRIBUTES = 4
+MIN_NB_ATTRIBUTES = 1
+MAX_NB_ATTRIBUTES = 6
 
 
 def test_generate_key(benchmark):

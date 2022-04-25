@@ -124,8 +124,8 @@ class IssueRequest:
         C: the commit value to be blindly signed by the issuer
         pi: the non-interractive proof of knowledge the prove the user owns secrets values t and (a_i), i in U"""
 
-    def __init__(self, C: G1Element, pi: PedersenKnowledgeProof) -> None:
-        self.C = C
+    def __init__(self, com: G1Element, pi: PedersenKnowledgeProof) -> None:
+        self.com = com
         self.pi = pi
 
 
@@ -263,15 +263,15 @@ def create_issue_request(
         raise ValueError(ATTRIBUTE_MAP_ERROR)
     t = G1.order().random()
     user_state = (t, user_attributes)
-    kp = create_issue_request_knowledge_proof(pk, t, user_attributes)
-    if len(user_attributes) == 0:
-        # deals early with the case where no user attributes to sign
-        return user_state, IssueRequest(pk.g**t, kp)
     # computes the product of Y_i^a_i for all i in the user attributes indexes
     # must take into account the Y_list index are in [0,L-1] and attributes in [1,L]
     Y_a_list = [pk.Y_list[i - 1] ** user_attributes[i] for i in user_attributes.keys()]
-    commit_product = (pk.g**t) * G1.prod(Y_a_list)
-    return user_state, IssueRequest(commit_product, kp)
+    com = (pk.g**t) * G1.prod(Y_a_list)
+    kp = create_issue_request_knowledge_proof(pk, t, user_attributes, com)
+    if len(user_attributes) == 0:
+        # deals early with the case where no user attributes to sign
+        return user_state, IssueRequest(pk.g**t, kp)
+    return user_state, IssueRequest(com, kp)
 
 
 def sign_issue_request(
@@ -291,16 +291,15 @@ def sign_issue_request(
     g_u = pk.g**u
     if len(issuer_attributes) == 0:
         # deals early with the case where no issuer attributes to sign
-        return BlindSignature(g_u, (sk.X * request.C) ** u, issuer_attributes)
+        return BlindSignature(g_u, (sk.X * request.com) ** u, issuer_attributes)
 
     # computes the product of Y_i^a_i for all i in the issuer attributes indexes
     # must take into account the Y_list index are in [0,L-1] and attributes in [1,L]
     Y_a_list = [
         pk.Y_list[i - 1] ** issuer_attributes[i] for i in issuer_attributes.keys()
     ]
-    prod = sk.X * request.C * G1.prod(Y_a_list)
+    prod = sk.X * request.com * G1.prod(Y_a_list)
     prod_u = prod**u
-
     return BlindSignature(g_u, prod_u, issuer_attributes)
 
 
@@ -343,12 +342,12 @@ def obtain_credential(
 
 
 def create_issue_request_knowledge_proof(
-    pk: PublicKey, t: Bn, user_attributes: AttributeMap
+    pk: PublicKey, t: Bn, user_attributes: AttributeMap, com: G1Element
 ) -> PedersenKnowledgeProof:
     """Create the Zero Knowledge Proof object that shows knowledge of commit value t and attributes (a_i) for i in U, the user attributes hidden to issuer. Follows the Pederson commitment implementation from Exercice Set 1.2 with a non-interactive adaptation"""
     randoms = [G1.order().random()]
     U = len(user_attributes)
-    commit = pk.g ** randoms[0]
+    R = pk.g ** randoms[0]
     sorted_user_attributes = dict(sorted(user_attributes.items()))
     if U > 0:
         r_list = [G1.order().random() for _ in range(U)]
@@ -358,9 +357,9 @@ def create_issue_request_knowledge_proof(
             for j, i in enumerate(sorted_user_attributes.keys())
         ]
         randoms += r_list
-        commit *= G1.prod(Y_s_prod)
+        R *= G1.prod(Y_s_prod)
     challenge = Bn.from_hex(
-        sha256(jsonpickle.encode((pk.pk, commit)).encode()).hexdigest()
+        sha256(jsonpickle.encode((pk.pk, R, com)).encode()).hexdigest()
     ).mod(G1.order())
 
     responses = [randoms[0] - challenge * t]
@@ -379,14 +378,14 @@ def verify_issue_request_knowledge_proof(
     issue_req: IssueRequest, pk: PublicKey
 ) -> bool:
     """Verifies the Zero Knowledge Proof object that shows knowledge of commit value t and attributes (a_i) for i in U, the user attributes hidden to issuer. Follows the Pederson commitment implementation from Exercice Set 1.2 with a non-interactive adaptation"""
-    C, pi = issue_req.C, issue_req.pi
-    commit = C**pi.challenge * pk.g**pi.response_0
+    com, pi = issue_req.com, issue_req.pi
+    R_prime = com**pi.challenge * pk.g**pi.response_0
     if len(pi.response_index) > 0:
-        commit *= G1.prod(
+        R_prime *= G1.prod(
             [pk.Y_list[index - 1] ** resp for resp, index in pi.response_index]
         )
     challenge_prime = Bn.from_hex(
-        sha256(jsonpickle.encode((pk.pk, commit)).encode()).hexdigest()
+        sha256(jsonpickle.encode((pk.pk, R_prime, com)).encode()).hexdigest()
     ).mod(G1.order())
     return pi.challenge == challenge_prime
 
@@ -424,19 +423,26 @@ def create_disclosure_proof(
     sign = Signature(rnd_sigma_1, rnd_sigma_2)
 
     R = rnd_sigma_1.pair(pk.g_hat) ** randoms[0]
+    com = rnd_sigma_1.pair(pk.g_hat) ** t
 
     if H > 0:
         ai_prime_list = [GT.order().random() for _ in range(H)]
         # Computes the list of Y_i^r_j for i in U (user attributes' indexes) and j in [1,...,|U|] (number of user attributes)
-        Y_hat_s_prod = [
+        Y_hat_r_prod = [
             rnd_sigma_1.pair(pk.Y_hat_list[i - 1]) ** ai_prime_list[ai_index]
             for ai_index, i in enumerate(sorted_hidden_attributes.keys())
         ]
+        # Computes the com value as the product of Y_i^a_i for i in the hidden attributes indexes
+        Y_hat_a_prod = [
+            rnd_sigma_1.pair(pk.Y_hat_list[i - 1]) ** sorted_hidden_attributes[i]
+            for i in sorted_hidden_attributes.keys()
+        ]
         randoms += ai_prime_list
-        R *= GT.prod(Y_hat_s_prod)
+        R *= GT.prod(Y_hat_r_prod)
+        com *= GT.prod(Y_hat_a_prod)
 
     challenge = Bn.from_hex(
-        sha256(jsonpickle.encode((pk.pk, R, message)).encode()).hexdigest()
+        sha256(jsonpickle.encode((pk.pk, com, R, message)).encode()).hexdigest()
     ).mod(GT.order())
 
     responses = [randoms[0] - challenge * t]  # st' = t' - Ct
@@ -495,11 +501,11 @@ def verify_disclosure_proof(
         ]
 
     sigma1_Xhat = sign.sigma1.pair(pk.X_hat)
-    commit = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
+    com = (sigma2_ghat * GT.prod(sigma1_Y_a_list)) / sigma1_Xhat
 
     # Compute R' (right side under t', ai')
     t_prime = disclosure_proof.pi.response_0
-    com_c = commit**disclosure_proof.pi.challenge
+    com_c = com**disclosure_proof.pi.challenge
     ghat_tprime = sign.sigma1.pair(pk.g_hat) ** t_prime
     R_prime = com_c * ghat_tprime
     # if we have hidden attributes
@@ -513,7 +519,7 @@ def verify_disclosure_proof(
 
     # Compute challenge of R'
     challenge_prime = Bn.from_hex(
-        sha256(jsonpickle.encode((pk.pk, R_prime, message)).encode()).hexdigest()
+        sha256(jsonpickle.encode((pk.pk, com, R_prime, message)).encode()).hexdigest()
     ).mod(GT.order())
 
     # Check challenge(R) = challenge(R')

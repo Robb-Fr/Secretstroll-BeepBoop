@@ -12,8 +12,8 @@ from stroll import *
 ###########
 ## TESTS ##
 ###########
-MIN_NB_ATTRIBUTES = 1
-MAX_NB_ATTRIBUTES = 10
+MIN_NB_ATTRIBUTES = 5
+MAX_NB_ATTRIBUTES = 5
 
 
 def test_jsonpickle():
@@ -113,7 +113,7 @@ def test_showing_protocol(benchmark):
     cred = client.process_registration_response(pk, blind_sig, user_state)
     showed_subscription = ["glouglou"]
 
-    cell_id = "51".encode()
+    cell_id = "grid 51".encode()
     disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
     benchmark(client.sign_request, pk, cred, cell_id, showed_subscription)
 
@@ -131,7 +131,7 @@ def test_verifying_protocol_1(benchmark):
     cred = client.process_registration_response(pk, blind_sig, user_state)
     showed_subscription = ["waterfall"]
 
-    cell_id = "99".encode()
+    cell_id = "loc 46.52345 6.57890".encode()
     disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
     assert server.check_request_signature(pk, cell_id, showed_subscription, disc_proof)
     benchmark(
@@ -154,7 +154,7 @@ def test_verifying_protocol_2(benchmark):
     cred = client.process_registration_response(pk, blind_sig, user_state)
     showed_subscription = ["shadow-moses", "home?"]
 
-    cell_id = "100".encode()
+    cell_id = "grid 100".encode()
     disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
     assert server.check_request_signature(pk, cell_id, showed_subscription, disc_proof)
     benchmark(
@@ -193,7 +193,7 @@ def test_protocol_fails():
         server.check_request_signature(pk, cell_id, showed_subscription, disc_proof)
 
     showed_subscription = random.choice([["park"], ["park", "pool"]])
-    cell_id = "12".encode()
+    cell_id = "loc 46.52365 6.57092".encode()
     disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
     ## cannot show attributes the credential does not sign for ##
     assert not server.check_request_signature(

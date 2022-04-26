@@ -14,5 +14,5 @@ python3 -m pytest secretstroll --count=100 -n 2 --benchmark-disable
 Run benchmark:
 ```bash
 # runs benchmarks, skips tests and produces histogram
-python3 -m pytest secretstroll --benchmark-enable --benchmark-only --benchmark-histogram
+python3 -m pytest secretstroll --benchmark-enable --benchmark-only --benchmark-histogram --benchmark-autosave
 ```

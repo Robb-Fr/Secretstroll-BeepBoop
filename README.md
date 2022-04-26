@@ -13,6 +13,16 @@ python3 -m pytest secretstroll --count=100 -n 2 --benchmark-disable
 
 Run benchmark:
 ```bash
-# runs benchmarks, skips tests and produces histogram
-python3 -m pytest secretstroll --benchmark-enable --benchmark-only --benchmark-histogram
+# runs benchmarks, skips tests, produces histogram and saves the benchmarked data
+python3 -m pytest secretstroll --benchmark-enable --benchmark-only --benchmark-histogram --benchmark-autosave
+```
+
+Commands used to produces the benchmarks in `.benchmarks` folder (assumes a working `pytest` command):
+```bash
+# runs benchmarks for credential.py, skips tests, produces histogram and saves the benchmarked data with correct names (for arm64 4 cores and 4 subscriptions and warms up the evaluation)
+pytest secretstroll/test_credential.py --benchmark-enable --benchmark-only --benchmark-histogram='credential_8_subscriptions_arm64_4cores' --benchmark-save='credential_8_subscriptions_arm64_4cores' --benchmark-warmup='on'
+# merges benchmarks of previous evaluations
+pytest-benchmark compare 0001 0002 0003 --histogram='credential_compare_arm64_4cores'
+# runs benchmarks for stroll.py, skips tests, produces histogram and saves the benchmarked data with correct names (for arm64 4 cores and warms up the evaluation)
+pytest secretstroll/test_stroll.py --benchmark-enable --benchmark-only --benchmark-histogram='stroll_arm64_4cores' --benchmark-save='stroll_arm64_4cores' --benchmark-warmup='on'
 ```

@@ -1,4 +1,5 @@
 import os
+from sys import getsizeof
 import random
 from typing import List
 
@@ -67,6 +68,11 @@ def test_generate_ca(benchmark):
     client = Client()
     subscriptions = ["baseball", "bar"]
     sk, pk = server.generate_ca(subscriptions)
+    print(
+        "\nNumber of bytes for secret key: {}, number of bytes for public key: {}".format(
+            getsizeof(sk), getsizeof(pk)
+        )
+    )
     benchmark(server.generate_ca, subscriptions)
     sk = jsonpickle.decode(sk)
     pk = jsonpickle.decode(pk)
@@ -95,8 +101,14 @@ def test_issuance_protocol(benchmark):
             sk, pk, issue_req, "beepboop", user_subscription
         )
         cred = client.process_registration_response(pk, blind_sig, user_state)
+        return issue_req, blind_sig, cred
 
-    make_registration()
+    issue_req, blind_sig, cred = make_registration()
+    print(
+        "\nNumber of bytes for issue request: {}, number of bytes for blind signature: {}, number of bytes for blind signature: {}".format(
+            getsizeof(issue_req), getsizeof(blind_sig), getsizeof(cred)
+        )
+    )
     benchmark(make_registration)
 
 
@@ -115,6 +127,7 @@ def test_showing_protocol(benchmark):
 
     cell_id = "46.63784,2.09865".encode()
     disc_proof = client.sign_request(pk, cred, cell_id, showed_subscription)
+    print("\nNumber of bytes for disclosure proof: {}".format(getsizeof(disc_proof)))
     benchmark(client.sign_request, pk, cred, cell_id, showed_subscription)
 
 

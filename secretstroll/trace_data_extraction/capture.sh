@@ -7,7 +7,7 @@ echo "==========================================================================
 echo "Begining capture"
 echo "================================================================================"
 OUTPUT_MSG="Capture failed for traces (none if empty): "
-# we go through every cell, indexed by i
+# we go through every cell {1..100}, indexed by i
 for i in {1..100}
     do
         # we format the trace filename with the day-month-hour format and cell index

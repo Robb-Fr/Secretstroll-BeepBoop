@@ -26,3 +26,18 @@ pytest-benchmark compare 0001 0002 0003 --histogram='credential_compare_arm64_4c
 # runs benchmarks for stroll.py, skips tests, produces histogram and saves the benchmarked data with correct names (for arm64 4 cores and warms up the evaluation)
 pytest secretstroll/test_stroll.py --benchmark-enable --benchmark-only --benchmark-histogram='stroll_arm64_4cores' --benchmark-save='stroll_arm64_4cores' --benchmark-warmup='on'
 ```
+
+## Part 2 
+
+The privacy evaluation was fully conducted in the `PrivacyEval.ipynb` notebook. It uses the provided `grid.py` and `queries.csv`, `pois.csv` files. 
+
+It is divided in the following parts:
+* Package Imports: the necessary package imports for the privacy evaluation.
+* Data Imports & Examination: Importing the csv files and examining the contents as well as extracting general statistics. 
+* Data Analysis: Creating visualisation for the data. 
+* Data Improvements: enhancing the data (e.g. timestamps and coordinates)
+* Data Analysis (Attack): extracting insight from the data to perform attacks and comparing results given certain mitigations. 
+* Defence: explanation of the mitigations. 
+
+
+

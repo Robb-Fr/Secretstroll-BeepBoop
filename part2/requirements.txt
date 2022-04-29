@@ -1,0 +1,14 @@
+Flask
+Flask-SQLAlchemy
+jsonpickle
+petrelic
+PySocks
+pylint
+pytest
+requests
+
+jupyter
+pandas
+sklearn
+matplotlib
+seaborn

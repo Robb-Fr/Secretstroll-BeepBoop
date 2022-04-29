@@ -33,7 +33,7 @@ pytest --benchmark-histogram --benchmark-autosave
 Runs the benchmarks over every functions of `stroll` and `credential` modules, generates an histogram as a `.svg` file and stores the results in the folder `.benchmarks/Linux-CPython-3.9-64bit` as json file.
 
 ```Bash
-pytest-compare 0 --histogram
+pytest-benchmark compare 0 --histogram
 ```
 Compares the results of the 1000 first benchmark saved results generated as above and produces an histogram.
 ## Coverage

@@ -9,6 +9,7 @@ requests
 
 jupyter
 pandas
-sklearn
 matplotlib
 seaborn
+plotly
+tabulate

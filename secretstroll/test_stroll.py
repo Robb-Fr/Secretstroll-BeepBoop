@@ -105,7 +105,7 @@ def test_issuance_protocol(benchmark):
 
     issue_req, blind_sig, cred = make_registration()
     print(
-        "\nNumber of bytes for issue request: {}, number of bytes for blind signature: {}, number of bytes for blind signature: {}".format(
+        "\nNumber of bytes for issue request: {}, number of bytes for blind signature: {}, number of bytes for credential: {}".format(
             getsizeof(issue_req), getsizeof(blind_sig), getsizeof(cred)
         )
     )

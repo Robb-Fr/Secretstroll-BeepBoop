@@ -1,7 +1,7 @@
 # Part 2 
-The privacy evaluation was fully conducted in the `privacy_evaluation/PrivacyEval.ipynb` notebook. It uses the provided `privacy_evaluation/grid.py` and `privacy_evaluation/queries.csv`, `privacy_evaluation/pois.csv` files. 
+This part has been test run in the client container deployed as described by the handout's README. You may need to install the required package with `pip install -r requirements.txt`
 
-You may need to install the required package with `pip install -r requirements.txt`
+The privacy evaluation was fully conducted in the `privacy_evaluation/PrivacyEval.ipynb` notebook. It uses the provided `privacy_evaluation/grid.py` and `privacy_evaluation/queries.csv`, `privacy_evaluation/pois.csv` files. 
 
 It is divided in the following parts:
 * Package Imports: the necessary package imports for the privacy evaluation.

@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Tuple
 from petrelic.bn import Bn
 
 from credential import *
+
+from hashlib import sha256
 # Optional import
 from serialization import jsonpickle
 
@@ -71,7 +73,7 @@ class Server:
             server_sk: the server's secret key (serialized)
             issuance_request: The issuance request (serialized)
             username: username
-            subscriptions: attributes
+            subscriptions: attributes the user wants to subscribe to
 
 
         Return:
@@ -293,5 +295,6 @@ def all_subscriptions_attribute_map(
 
 
 def str_to_attribute(subscription: str) -> Attribute:
-    """Transforms a string into a valid positive mod(order(G1)) attribute value as Bn"""
-    return Bn.from_binary(subscription.encode()).mod(G1.order())
+    """Transforms a string into a valid positive mod(order(G1)) attribute value as Bn
+    Note that we hash the subscription value to make harder the finding of collision in the attribute value that could lead an attacker to get valid attribute for fake subscription."""
+    return Bn.from_binary(sha256(subscription.encode()).digest()).mod(G1.order())

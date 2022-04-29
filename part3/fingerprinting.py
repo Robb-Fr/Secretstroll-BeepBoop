@@ -124,10 +124,6 @@ def perform_crossval(features, labels, folds=10):
         )
     )
 
-    ###############################################
-    # TODO: Write code to evaluate the performance of your classifier
-    ###############################################
-
 
 def load_data():
 

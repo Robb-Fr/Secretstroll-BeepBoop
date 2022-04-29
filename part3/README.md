@@ -2,12 +2,12 @@
 
 The running environment for this part is the docker client, deployed as described in the handout README. We mainly developped in this one (as one of us is using a M1 chip computer). We assume the subscriptions, keys and credentials have been generated as explained in the sample run of the handout's README.
 
-We recommand having a terminal for the the server and one for the client.
+We recommand having a terminal for the the server and one for the client. Both should have PATH inside the `part3` folder. You can move this folder inside the `secrestroll` folder of the code skeleton to be able to reach it from the client and server docker containers.
 
 ## Trace collection
 We assume running in the server container
 ```Bash
-cd server; python3 server.py run
+python3 server.py run
 ```
 While in the client container, we run:
 ```Bash
